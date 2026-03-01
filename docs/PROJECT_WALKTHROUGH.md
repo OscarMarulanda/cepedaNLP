@@ -324,6 +324,7 @@ Full evaluation documented in `docs/NER_MODEL_EVALUATION.md`.
 - **Decomposed storage:** NLP analysis is NOT stored as a single blob. Entities and annotations are normalized into separate tables for efficient querying (e.g., "find all speeches mentioning Bogota" is a simple SQL query).
 - **JSONB for flexibility:** Tokens, POS tags, and dependency parses are stored as JSONB, allowing schema evolution without migrations.
 - **ON DELETE CASCADE:** All foreign keys cascade from `speeches`, ensuring data consistency.
+- **Transport security:** Remote DB connections use `DB_SSLMODE=require` to enforce TLS encryption. See `docs/DB_CONNECTION_SECURITY.md`.
 
 ---
 
@@ -581,7 +582,7 @@ Streamlit renders the response with clickable YouTube links
 - **No streaming:** The full response is generated and displayed at once (with a spinner during processing). Token-by-token streaming was not implemented.
 - **Session-based rate limiting:** 30 messages per session. No authentication — sufficient for demo/MVP scale.
 - **API key safety:** Because Streamlit runs Python server-side, the Anthropic API key is never exposed to the browser.
-- **Tool dispatch is direct:** MCP tools are imported from `src/mcp/server` and called as local Python functions — no HTTP, no IPC, no serialization overhead.
+- **Tool dispatch is direct:** MCP tools are imported from `src/mcp/server` and called as local Python functions — no HTTP, no IPC, no serialization overhead. This means the MCP layer is **not a network attack surface** — there is nothing to intercept between Streamlit and the tools.
 
 **Known issue — Haiku tool hallucination:** In rare cases, Haiku fabricated tool results without actually calling the tool (e.g., returning a fake `opinion_id`). Fixed by adding explicit rules to the system prompt: `"NUNCA finjas haberla guardado"` (never pretend you saved it without calling the tool). If the issue recurs, the orchestrator can be upgraded to Sonnet.
 
@@ -678,6 +679,8 @@ Mac Mini (local)                    AWS
 
 **Sync method:** Point the pipeline at the remote RDS endpoint by changing `DB_HOST` in `.env`. No export/import needed — the pipeline writes directly to production DB.
 
+**Connection security:** Remote DB connections use `DB_SSLMODE=require` to enforce TLS encryption over the internet. MCP tool calls stay in-process (no network hop). Full analysis in `docs/DB_CONNECTION_SECURITY.md`.
+
 **Cost estimate:** ~$10–35/month (RDS t3.micro + EC2 t3.small + Claude API at demo scale).
 
 **Why not process on AWS?** The M4 Mac Mini handles Whisper + pyannote + spaCy for free. AWS GPU instances (g4dn.xlarge) would cost ~$0.03/speech but add operational complexity. Full corpus processing: ~8 hours local (free) vs. ~4 hours on AWS (~$2.10).
@@ -739,4 +742,4 @@ All major decisions are documented as Architecture Decision Records (ADRs) in `d
 | **Data** | `data/gazetteer/colombian_locations.txt`, `data/reference_embedding.npy`, `data/speech_manifest.json` |
 | **Schema** | `schema.sql` |
 | **Tests** | `tests/corpus/test_diarizer.py`, `tests/rag/test_chunker.py`, `tests/rag/test_retriever.py`, `tests/mcp/test_tools.py`, `tests/mcp/test_security.py` |
-| **Documentation** | `docs/RAG_DESIGN_DECISIONS.md`, `docs/NER_MODEL_EVALUATION.md`, `docs/API_COST_ANALYSIS.md`, `docs/DEPLOYMENT_ARCHITECTURE.md`, `docs/PHASE6_API_PLAN.md`, `docs/decisions/001-007.md` |
+| **Documentation** | `docs/RAG_DESIGN_DECISIONS.md`, `docs/NER_MODEL_EVALUATION.md`, `docs/API_COST_ANALYSIS.md`, `docs/DEPLOYMENT_ARCHITECTURE.md`, `docs/DB_CONNECTION_SECURITY.md`, `docs/PHASE6_API_PLAN.md`, `docs/decisions/001-008.md` |

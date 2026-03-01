@@ -48,7 +48,10 @@ DB_PORT=5432
 DB_NAME=cepeda_nlp
 DB_USER=oscarm
 DB_PASSWORD=<secure password>
+DB_SSLMODE=require
 ```
+
+> **Security note:** Remote DB connections must use `DB_SSLMODE=require` to enforce TLS encryption. Without it, `psycopg2` defaults to `prefer`, which silently falls back to plaintext and is vulnerable to MITM downgrade attacks. See `docs/DB_CONNECTION_SECURITY.md` for full analysis.
 
 ### RDS Access
 - Whitelist the Mac Mini's public IP in the RDS security group, or
@@ -96,6 +99,20 @@ No redeployment of the app needed — FastAPI/Streamlit read from the same DB, s
 | Monthly (2-3 new speeches) | ~30 min, **free** | ~15 min, ~$0.15 |
 
 The Mac Mini has an M4 chip with 16GB RAM — more than enough for Whisper large-v3 and pyannote. No reason to pay for cloud GPU when the local machine handles it well.
+
+## Connection Security
+
+When the app connects to a remote database over the internet, the connection must be encrypted:
+
+```
+Streamlit Cloud ──psycopg2 (TLS)──▶ Remote PostgreSQL
+```
+
+Set `DB_SSLMODE=require` in the production environment. This ensures `psycopg2` uses TLS and refuses plaintext fallback. For maximum security, use `DB_SSLMODE=verify-full` with the provider's CA certificate.
+
+MCP tool calls are **in-process Python function calls** — they never leave the Streamlit process, so there is no network attack surface between the app and the tool layer.
+
+Full analysis: `docs/DB_CONNECTION_SECURITY.md`, ADR: `docs/decisions/008-db-ssl-for-remote-connections.md`.
 
 ## Future Considerations
 
