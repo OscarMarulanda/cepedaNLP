@@ -5,6 +5,17 @@ All notable changes to the cepedaNLP project.
 ## 2026-03-01
 
 ### Added
+- **HuggingFace Inference API for query embeddings** (`feature/hf-embedding-api` branch):
+  - `EMBEDDING_PROVIDER` env var switches `embed_query()` between local SentenceTransformer and HF API
+  - Lazy-imports SentenceTransformer to avoid loading ~868 MB when using API path
+  - 4 new tests in `tests/rag/test_embedder.py` (98 total project tests)
+- **DB connection security analysis** (`docs/DB_CONNECTION_SECURITY.md`):
+  - Documents the 3 network hops (browser→Streamlit, Streamlit→DB, Streamlit→APIs)
+  - Identifies MITM downgrade risk with default `sslmode=prefer` on remote DB connections
+  - Recommends `DB_SSLMODE=require` for all remote deployments
+  - ADR 008: `docs/decisions/008-db-ssl-for-remote-connections.md`
+
+### Changed
 - **Colombia bubble map visualization** — geographic map showing where LOC entities are mentioned:
   - `COLOMBIAN_COORDS` constant with 21 hardcoded (lat, lon) for corpus locations
   - `_render_colombia_map()` helper using Plotly `scatter_geo`, scoped/zoomed to Colombia

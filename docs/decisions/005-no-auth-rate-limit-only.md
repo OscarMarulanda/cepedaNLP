@@ -10,12 +10,12 @@ The API needs to be accessible for demo purposes (MVP, public showcase). Authent
 No authentication. Protect with rate limiting (slowapi), input validation, prompt injection filtering, and CORS instead.
 
 ## Security Stack
-1. Rate limiting — 10/min per IP on `/ask` (Claude API), 60/min on reads
+1. Rate limiting — 30 messages per session (MCP-only architecture, no REST endpoints)
 2. Input validation — Pydantic max_length=500, type constraints
 3. Prompt injection filter — 14+ regex patterns, rejects with 400
 4. SQL injection — parameterized queries (psycopg2 `%s`)
-5. CORS — whitelist frontend origins
-6. Output sanitization — strip XSS vectors from LLM output
+5. Output sanitization — strip XSS vectors from LLM output
+6. Transport encryption — `DB_SSLMODE=require` for remote DB connections (see ADR 008)
 
 ## Rationale
 - Demo/MVP app — friction-free access is more important than gatekeeping.
@@ -25,3 +25,4 @@ No authentication. Protect with rate limiting (slowapi), input validation, promp
 ## Consequences
 - Vulnerable to determined abuse (IP rotation bypasses rate limits).
 - Acceptable risk for a demo. Production would add API keys or OAuth.
+- DB connections over the internet are encrypted via `sslmode=require` (see `docs/DB_CONNECTION_SECURITY.md`).

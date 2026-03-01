@@ -6,6 +6,7 @@ transformers>=4.36
 # Spanish BERT / Embeddings
 sentence-transformers>=2.3
 torch>=2.1
+huggingface-hub>=0.20
 
 # Topic Modeling
 bertopic>=0.16
