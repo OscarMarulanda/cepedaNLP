@@ -1,0 +1,50 @@
+# NLP & Linguistics
+spacy>=3.7
+nltk>=3.8
+transformers>=4.36
+
+# Spanish BERT / Embeddings
+sentence-transformers>=2.3
+torch>=2.1
+
+# Topic Modeling
+bertopic>=0.16
+
+# Transcription & Audio
+openai-whisper>=20231117
+yt-dlp>=2024.1
+
+# Speaker Diarization
+pyannote.audio>=3.3
+
+# Database
+psycopg2-binary>=2.9
+pgvector>=0.2
+
+# LLM
+anthropic>=0.39
+
+# Backend
+fastapi>=0.109
+uvicorn>=0.25
+
+# MCP
+fastmcp>=3.0
+
+# Frontend
+streamlit>=1.30
+
+# Visualization
+matplotlib>=3.8
+plotly>=5.18
+
+# Utilities
+python-dotenv>=1.0
+pydantic>=2.5
+
+# Testing
+pytest>=7.4
+
+# Notebooks
+jupyter>=1.0
+ipykernel>=6.28

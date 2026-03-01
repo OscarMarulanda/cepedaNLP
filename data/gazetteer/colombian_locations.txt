@@ -1,0 +1,1108 @@
+# Colombian locations gazetteer for NER post-processing
+# Source: DANE DIVIPOLA (datos.gov.co) + manual additions
+# Format: one location per line, title case
+# Includes spoken variants (e.g. "Barbacoa" for DANE's "Barbacoas")
+#
+# Spoken variants not in DANE
+Barbacoa
+Corte Pela
+#
+Abejorral
+Abriaquí
+Acacías
+Acandí
+Acevedo
+Achí
+Agrado
+Agua De Dios
+Aguachica
+Aguada
+Aguadas
+Aguazul
+Agustín Codazzi
+Aipe
+Albania
+Albán
+Alcalá
+Aldana
+Alejandría
+Algarrobo
+Algeciras
+Almaguer
+Almeida
+Alpujarra
+Altamira
+Alto Baudó
+Altos Del Rosario
+Alvarado
+Amagá
+Amalfi
+Amazonas
+Amazonía
+Ambalema
+Anapoima
+Ancuya
+Andalucía
+Andes
+Angelópolis
+Angostura
+Anolaima
+Anorí
+Anserma
+Ansermanuevo
+Antioquia
+Anzoátegui
+Anzá
+Apartadó
+Apulo
+Apía
+Aquitania
+Aracataca
+Aranzazu
+Aratoca
+Arauca
+Arauquita
+Arbeláez
+Arboleda
+Arboledas
+Arboletes
+Arcabuco
+Archipiélago De San Andrés, Providencia Y Santa Catalina
+Arenal
+Argelia
+Argentina
+Ariguaní
+Arjona
+Armenia
+Armero
+Arroyohondo
+Astrea
+Ataco
+Atlántico
+Atrato
+Ayapel
+Bagadó
+Bahía Solano
+Bajo Baudó
+Balboa
+Baranoa
+Baraya
+Barbacoas
+Barbosa
+Barichara
+Barranca De Upía
+Barrancabermeja
+Barrancas
+Barranco De Loba
+Barrancominas
+Barranquilla
+Becerril
+Belalcázar
+Bello
+Belmira
+Beltrán
+Belén
+Belén De Los Andaquíes
+Belén De Umbría
+Berbeo
+Betania
+Betulia
+Betéitiva
+Bituima
+Boavita
+Bochalema
+Bogotá
+Bogotá, D.C.
+Bojacá
+Bojayá
+Bolivia
+Bolívar
+Bosconia
+Boyacá
+Brasil
+Briceño
+Brincauta
+Bucaramanga
+Bucarasica
+Buenaventura
+Buenavista
+Buenos Aires
+Buesaco
+Bugalagrande
+Buriticá
+Busbanzá
+Cabrera
+Cabuyaro
+Cacahual
+Cachipay
+Caicedo
+Caicedonia
+Caimito
+Cajamarca
+Cajibío
+Cajicá
+Calamar
+Calarcá
+Caldas
+Caldono
+California
+Calima
+Caloto
+Campamento
+Campo De La Cruz
+Campoalegre
+Campohermoso
+Canaleste
+Canalete
+Candelaria
+Cantagallo
+Caparrapí
+Capitanejo
+Caquetá
+Caracolí
+Caramanta
+Carcasí
+Carepa
+Caribe
+Carmen De Apicalá
+Carmen De Carupa
+Carmen Del Darién
+Carolina
+Cartagena De Indias
+Cartagena Del Chairá
+Cartago
+Carurú
+Casabianca
+Casanare
+Castilla La Nueva
+Catatumbo
+Cauca
+Caucasia
+Cañasgordas
+Cepitá
+Cereté
+Cerinza
+Cerrito
+Cerro De San Antonio
+Cesar
+Chachagüí
+Chaguaní
+Chalán
+Chaparral
+Charalá
+Charta
+Chigorodó
+Chile
+Chima
+Chimichagua
+Chimá
+Chinavita
+Chinchiná
+Chinácota
+Chinú
+Chipaque
+Chipatá
+Chiquinquirá
+Chiriguaná
+Chiscas
+Chita
+Chitagá
+Chitaraque
+Chivatá
+Chivolo
+Chivor
+Choachí
+Chocontá
+Chocó
+Chámeza
+Chía
+Chíquiza
+Cicuco
+Cimitarra
+Circasia
+Cisneros
+Ciudad Bolívar
+Ciénaga
+Ciénaga De Oro
+Ciénega
+Clemencia
+Cocorná
+Coello
+Cogua
+Colombia
+Colosó
+Colón
+Concepción
+Concordia
+Condoto
+Confines
+Consacá
+Contadero
+Contratación
+Convención
+Copacabana
+Coper
+Corinto
+Coromoro
+Corozal
+Corrales
+Costa Rica
+Cota
+Cotorra
+Covarachía
+Coveñas
+Coyaima
+Cravo Norte
+Cuaspud Carlosama
+Cuba
+Cubarral
+Cubará
+Cucaita
+Cucunubá
+Cucutilla
+Cumaral
+Cumaribo
+Cumbal
+Cumbitara
+Cunday
+Cundinamarca
+Curillo
+Curití
+Curumaní
+Cuítiva
+Cáceres
+Cáchira
+Cácota
+Cáqueza
+Cértegui
+Cómbita
+Córdoba
+Dabeiba
+Dagua
+Dibulla
+Distracción
+Dolores
+Donmatías
+Dosquebradas
+Duitama
+Durania
+Ebéjico
+Ecuador
+El Bagre
+El Banco
+El Cairo
+El Calvario
+El Cantón Del San Pablo
+El Carmen
+El Carmen De Atrato
+El Carmen De Bolívar
+El Carmen De Chucurí
+El Carmen De Viboral
+El Castillo
+El Cerrito
+El Charco
+El Cocuy
+El Colegio
+El Copey
+El Doncello
+El Dorado
+El Dovio
+El Encanto
+El Espino
+El Guacamayo
+El Guamo
+El Litoral Del San Juan
+El Molino
+El Paso
+El Paujíl
+El Peñol
+El Peñón
+El Piñón
+El Playón
+El Retorno
+El Retén
+El Roble
+El Rosal
+El Rosario
+El Salvador
+El Santuario
+El Tablón De Gómez
+El Tambo
+El Tarra
+El Zulia
+El Águila
+Elías
+Encino
+Enciso
+Entrerríos
+Envigado
+Espinal
+Facatativá
+Falan
+Filadelfia
+Filandia
+Firavitoba
+Flandes
+Florencia
+Floresta
+Florida
+Floridablanca
+Florián
+Fonseca
+Fortul
+Fosca
+Francisco Pizarro
+Fredonia
+Fresno
+Frontino
+Fuente De Oro
+Fundación
+Funes
+Funza
+Fusagasugá
+Fómeque
+Fúquene
+Gachalá
+Gachancipá
+Gachantivá
+Gachetá
+Galapa
+Galeras
+Galán
+Gama
+Gamarra
+Garagoa
+Garzón
+Gigante
+Ginebra
+Giraldo
+Girardot
+Girardota
+Girón
+González
+Gramalote
+Granada
+Guaca
+Guacamayas
+Guacarí
+Guachené
+Guachetá
+Guachucal
+Guadalajara De Buga
+Guadalupe
+Guaduas
+Guainía
+Guaitarilla
+Gualmatán
+Guamal
+Guamo
+Guapi
+Guapotá
+Guaranda
+Guarne
+Guasca
+Guatapé
+Guataquí
+Guatavita
+Guatemala
+Guateque
+Guavatá
+Guaviare
+Guayabal De Síquima
+Guayabetal
+Guayatá
+Gutiérrez
+Guática
+Gámbita
+Gámeza
+Génova
+Gómez Plata
+Güepsa
+Güicán De La Sierra
+Hacarí
+Hatillo De Loba
+Hato
+Hato Corozal
+Hatonuevo
+Heliconia
+Herrán
+Herveo
+Hispania
+Hobo
+Honda
+Honduras
+Huila
+Ibagué
+Icononzo
+Iles
+Imués
+Inzá
+Inírida
+Ipiales
+Isnos
+Istmina
+Itagüí
+Ituango
+Iza
+Jambaló
+Jamundí
+Jardín
+Jenesano
+Jericó
+Jerusalén
+Jesús María
+Jordán
+Juan De Acosta
+Junín
+Juradó
+La Apartada
+La Argentina
+La Belleza
+La Calera
+La Capilla
+La Ceja
+La Celia
+La Chorrera
+La Cruz
+La Cumbre
+La Dorada
+La Esperanza
+La Estrella
+La Florida
+La Gloria
+La Guadalupe
+La Guajira
+La Jagua De Ibirico
+La Jagua Del Pilar
+La Llanada
+La Macarena
+La Merced
+La Mesa
+La Montañita
+La Palma
+La Paz
+La Pedrera
+La Peña
+La Pintada
+La Plata
+La Playa
+La Primavera
+La Salina
+La Sierra
+La Tebaida
+La Tola
+La Tona
+La Unión
+La Uvita
+La Vega
+La Victoria
+La Virginia
+Labateca
+Labranzagrande
+Landázuri
+Lebrija
+Leiva
+Lejanías
+Lenguazaque
+Leticia
+Liborina
+Linares
+Llanos Orientales
+Lloró
+Lorica
+Los Andes
+Los Córdobas
+Los Palmitos
+Los Patios
+Los Santos
+Lourdes
+Luruaco
+Lérida
+Líbano
+López De Micay
+Macanal
+Macaravita
+Maceo
+Machetá
+Madrid
+Magangué
+Magdalena
+Magdalena Medio
+Magüí
+Mahates
+Maicao
+Majagual
+Malambo
+Mallama
+Mamú Payán
+Manatí
+Manaure
+Manaure Balcón Del Cesar
+Manizales
+Manta
+Manzanares
+Maní
+Mapiripán
+Margarita
+Marinilla
+Maripí
+Marmato
+Marquetalia
+Marsella
+Marulanda
+María La Baja
+Matanza
+Medellín
+Medina
+Medio Atrato
+Medio Baudó
+Medio San Juan
+Melgar
+Mercaderes
+Mesetas
+Meta
+Milán
+Miraflores
+Miranda
+Mirití - Paraná
+Mistrató
+Mitú
+Mocoa
+Mogotes
+Molagavita
+Momil
+Mongua
+Monguí
+Moniquirá
+Montebello
+Montecristo
+Montelíbano
+Montenegro
+Monterrey
+Montería
+Morales
+Morelia
+Morichal
+Morroa
+Mosquera
+Motavita
+Moñitos
+Murillo
+Murindó
+Mutatá
+Mutiscua
+Muzo
+Málaga
+México
+Nariño
+Natagaima
+Nechí
+Necoclí
+Neira
+Neiva
+Nemocón
+Nicaragua
+Nilo
+Nimaima
+Nobsa
+Nocaima
+Norcasia
+Norosí
+Norte De Santander
+Nueva Granada
+Nuevo Belén De Bajirá
+Nuevo Colón
+Nunchía
+Nuquí
+Nátaga
+Nóvita
+Obando
+Ocamonte
+Ocaña
+Oiba
+Oicatá
+Olalla Herrera
+Olaya
+Olaya Herrera
+Onzaga
+Oporapa
+Orinoquía
+Orito
+Orocué
+Ortega
+Ospina
+Otanche
+Ovejas
+Pachavita
+Pacho
+Pacoa
+Pacífico
+Pacífico Nariñense
+Padilla
+Paicol
+Pailitas
+Paime
+Paipa
+Pajarito
+Palermo
+Palestina
+Palmar
+Palmar De Varela
+Palmas Del Socorro
+Palmira
+Palmito
+Palocabildo
+Pamplona
+Pamplonita
+Pana Pana
+Panamá
+Pandi
+Panqueba
+Papunahua
+Paraguay
+Paratebueno
+Pasca
+Pasto
+Patía
+Pauna
+Paya
+Paz De Ariporo
+Paz De Río
+Pedraza
+Pelaya
+Pensilvania
+Peque
+Pereira
+Perú
+Pesca
+Peñol
+Piamonte
+Piedecuesta
+Piedras
+Piedremonte
+Piendamó - Tunía
+Pijao
+Pijiño Del Carmen
+Pinchote
+Pinillos
+Piojó
+Pisba
+Pital
+Pitalito
+Pivijay
+Planadas
+Planeta Rica
+Plato
+Policarpa
+Polonuevo
+Ponedera
+Popayán
+Pore
+Potosí
+Pradera
+Prado
+Providencia
+Pueblo Bello
+Pueblo Nuevo
+Pueblo Rico
+Pueblorrico
+Puebloviejo
+Puente Nacional
+Puerres
+Puerto Alegría
+Puerto Arica
+Puerto Asís
+Puerto Berrío
+Puerto Boyacá
+Puerto Caicedo
+Puerto Carreño
+Puerto Colombia
+Puerto Concordia
+Puerto Escondido
+Puerto Gaitán
+Puerto Guzmán
+Puerto Leguízamo
+Puerto Libertador
+Puerto Lleras
+Puerto López
+Puerto Nare
+Puerto Nariño
+Puerto Parra
+Puerto Rico
+Puerto Rondón
+Puerto Salgar
+Puerto Santander
+Puerto Tejada
+Puerto Triunfo
+Puerto Wilches
+Pulí
+Pupiales
+Puracé
+Purificación
+Purísima De La Concepción
+Putumayo
+Pácora
+Páez
+Páramo
+Quebradanegra
+Quetame
+Quibdó
+Quimbaya
+Quinchía
+Quindío
+Quipile
+Quípama
+Ragonvalia
+Ramiriquí
+Recetor
+Regidor
+Remedios
+Remolino
+Repelón
+República Dominicana
+Restrepo
+Retiro
+Ricaurte
+Rioblanco
+Riofrío
+Riohacha
+Rionegro
+Riosucio
+Risaralda
+Rivera
+Roberto Payán
+Roldanillo
+Roncesvalles
+Rondón
+Rosas
+Rovira
+Ráquira
+Río De Oro
+Río Iró
+Río Quito
+Río Viejo
+Sabana De Torres
+Sabanagrande
+Sabanalarga
+Sabanas De San Ángel
+Sabaneta
+Saboyá
+Sahagún
+Saladoblanco
+Salamina
+Salazar
+Saldaña
+Salento
+Salgar
+Samacá
+Samaniego
+Samaná
+Sampués
+San Agustín
+San Alberto
+San Andrés
+San Andrés De Cuerquía
+San Andrés De Sotavento
+San Andrés De Tumaco
+San Antero
+San Antonio
+San Antonio Del Tequendama
+San Benito
+San Benito Abad
+San Bernardo
+San Bernardo Del Viento
+San Calixto
+San Carlos
+San Carlos De Guaroa
+San Cayetano
+San Cristóbal
+San Diego
+San Eduardo
+San Estanislao
+San Felipe
+San Fernando
+San Francisco
+San Gil
+San Jacinto
+San Jacinto Del Cauca
+San Jerónimo
+San Joaquín
+San José
+San José De Cúcuta
+San José De La Montaña
+San José De Miranda
+San José De Pare
+San José De Toluviejo
+San José De Uré
+San José Del Fragua
+San José Del Guaviare
+San José Del Palmar
+San Juan De Arama
+San Juan De Betulia
+San Juan De Rioseco
+San Juan De Urabá
+San Juan Del Cesar
+San Juan Nepomuceno
+San Juanito
+San Lorenzo
+San Luis
+San Luis De Gaceno
+San Luis De Palenque
+San Luis De Sincé
+San Marcos
+San Martín
+San Martín De Loba
+San Mateo
+San Miguel
+San Miguel De Sema
+San Onofre
+San Pablo
+San Pablo De Borbur
+San Pedro
+San Pedro De Cartago
+San Pedro De Los Milagros
+San Pedro De Urabá
+San Pelayo
+San Rafael
+San Roque
+San Sebastián
+San Sebastián De Buenavista
+San Sebastián De Mariquita
+San Vicente De Chucurí
+San Vicente Del Caguán
+San Vicente Ferrer
+San Zenón
+Sandoná
+Santa Ana
+Santa Bárbara
+Santa Bárbara De Pinto
+Santa Catalina
+Santa Cruz De Mompox
+Santa Fé De Antioquia
+Santa Helena Del Opón
+Santa Isabel
+Santa Lucía
+Santa Marta
+Santa María
+Santa Rosa
+Santa Rosa De Cabal
+Santa Rosa De Osos
+Santa Rosa De Viterbo
+Santa Rosa Del Sur
+Santa Rosalía
+Santa Sofía
+Santacruz
+Santana
+Santander
+Santander De Quilichao
+Santiago
+Santiago De Cali
+Santiago De Tolú
+Santo Domingo
+Santo Tomás
+Santuario
+Sapuyes
+Saravena
+Sardinata
+Sasaima
+Sativanorte
+Sativasur
+Segovia
+Serranía
+Sesquilé
+Sevilla
+Siachoque
+Sibaté
+Sibundoy
+Sierra Nevada
+Silos
+Silvania
+Silvia
+Simacota
+Simijaca
+Simití
+Sincelejo
+Sipí
+Sitionuevo
+Soacha
+Soatá
+Socha
+Socorro
+Socotá
+Sogamoso
+Solano
+Soledad
+Solita
+Somondoco
+Sonsón
+Sopetrán
+Soplaviento
+Sopó
+Sora
+Soracá
+Sotaquirá
+Sotará - Paispamba
+Suaita
+Suan
+Suaza
+Subachoque
+Sucre
+Suesca
+Supatá
+Supía
+Suratá
+Susa
+Susacón
+Sutamarchán
+Sutatausa
+Sutatenza
+Suárez
+Sácama
+Sáchica
+Tabio
+Tadó
+Talaigua Nuevo
+Tamalameque
+Tame
+Taminango
+Tangua
+Taraira
+Tarapacá
+Tarazá
+Tarqui
+Tarso
+Tasco
+Tauramena
+Tausa
+Tello
+Tena
+Tenerife
+Tenjo
+Tenza
+Teorama
+Teruel
+Tesalia
+Tibacuy
+Tibaná
+Tibasosa
+Tibirita
+Tibú
+Tierralta
+Timaná
+Timbiquí
+Timbío
+Tinjacá
+Tipacoque
+Tiquisio
+Titiribí
+Toca
+Tocaima
+Tocancipá
+Togüí
+Toledo
+Tolima
+Tona
+Topaipí
+Toribío
+Toro
+Tota
+Totoró
+Trinidad
+Trujillo
+Tubará
+Tuchín
+Tuluá
+Tumaco
+Tunja
+Tununguá
+Turbaco
+Turbaná
+Turbo
+Turmequé
+Tuta
+Tutazá
+Támara
+Támesis
+Tópaga
+Túquerres
+Ubalá
+Ubaque
+Ulloa
+Une
+Unguía
+Unión Panamericana
+Urabá
+Uramita
+Uribe
+Uribia
+Urrao
+Uruguay
+Urumita
+Usiacurí
+Valdivia
+Valencia
+Valle De San José
+Valle De San Juan
+Valle Del Cauca
+Valle Del Guamuez
+Valledupar
+Valparaíso
+Vaupés
+Vegachí
+Venadillo
+Venecia
+Venezuela
+Ventaquemada
+Vergara
+Versalles
+Vetas
+Vianí
+Vichada
+Victoria
+Vigía Del Fuerte
+Vijes
+Villa Caro
+Villa De Leyva
+Villa De San Diego De Ubaté
+Villa Del Rosario
+Villa Rica
+Villagarzón
+Villagómez
+Villahermosa
+Villamaría
+Villanueva
+Villapinzón
+Villarrica
+Villavicencio
+Villavieja
+Villeta
+Viotá
+Viracachá
+Vistahermosa
+Viterbo
+Vélez
+Yacopí
+Yacuanquer
+Yaguará
+Yalí
+Yarumal
+Yavaraté
+Yolombó
+Yondó
+Yopal
+Yotoco
+Yumbo
+Zambrano
+Zapatoca
+Zapayán
+Zaragoza
+Zarzal
+Zetaquira
+Zipacón
+Zipaquirá
+Zona Bananera
+perla del Pacífico
+Ábrego
+Íquira
+Úmbita
+Útica

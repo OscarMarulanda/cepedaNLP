@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# Audio files (too large for git)
+data/audio/*.mp3
+data/audio/*.wav
+data/audio/*.m4a
+data/audio/*.webm
+data/audio/*.ogg
+
+# Reference voice embeddings
+data/reference_embedding.npy
+
+# Model weights (too large for git)
+models/**/*.bin
+models/**/*.pt
+models/**/*.pth
+models/**/*.onnx
+models/**/*.safetensors
+models/**/config.json
+models/**/tokenizer*
+models/**/vocab*
+models/**/special_tokens*
+
+# Whisper model cache
+*.pt
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_metadata
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PostgreSQL dumps
+*.sql.gz
+*.dump
+
+# Logs
+*.log
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage
