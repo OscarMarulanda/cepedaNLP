@@ -10,7 +10,7 @@ Run:
 import json
 import logging
 import sys
-import time
+from collections.abc import Generator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -30,7 +30,7 @@ from src.frontend.abuse_detector import (
     detect_abuse,
 )
 from src.frontend.prompts import SYSTEM_PROMPT, TOOLS
-from src.frontend.visualizations import render_visualizations
+from src.frontend.visualizations import render_source_chunks, render_visualizations
 from src.mcp.server import (
     get_corpus_stats,
     get_opinions,
@@ -55,11 +55,13 @@ class ToolCallRecord:
 
 
 @dataclass
-class AssistantResponse:
-    """Complete response from a Claude interaction."""
+class ToolRoundResult:
+    """Result of tool-use rounds before the final streamed response."""
 
-    text: str
-    tool_calls: list[ToolCallRecord] = field(default_factory=list)
+    tool_calls: list[ToolCallRecord]
+    api_messages: list[dict]
+    direct_text: str | None = None
+    is_easter_egg: bool = False
 
 
 MODEL = "claude-haiku-4-5-20251001"
@@ -88,6 +90,21 @@ def _init_session_state():
         st.session_state.message_count = 0
 
 
+def _dump_content_block(block) -> dict:
+    """Serialize an API content block, keeping only API-accepted fields.
+
+    The SDK's ``model_dump()`` can include internal fields (e.g.
+    ``parsed_output`` on ``TextBlock``) that the API rejects with
+    ``Extra inputs are not permitted``.
+    """
+    if block.type == "text":
+        return {"type": "text", "text": block.text}
+    if block.type == "tool_use":
+        return {"type": "tool_use", "id": block.id, "name": block.name, "input": block.input}
+    # Fallback for any other block type
+    return block.model_dump()
+
+
 def _execute_tool(name: str, input_args: dict) -> str:
     """Execute a tool by name and return JSON result."""
     func = TOOL_DISPATCH.get(name)
@@ -101,11 +118,15 @@ def _execute_tool(name: str, input_args: dict) -> str:
         return json.dumps({"error": str(e)})
 
 
-def _call_claude(
+def _run_tool_rounds(
     client: anthropic.Anthropic, messages: list[dict],
-) -> AssistantResponse:
-    """Call Claude with tool-use loop, return text + tool call records."""
-    # Strip non-API keys (e.g. tool_calls for visualization) before sending
+) -> ToolRoundResult:
+    """Run tool-use rounds, returning early after the last tool execution.
+
+    When tools are called, returns with ``direct_text=None`` so the caller
+    can stream the final text generation.  When no tools are needed (e.g.
+    greetings), returns the text directly in ``direct_text``.
+    """
     api_messages = [
         {"role": m["role"], "content": m["content"]} for m in messages
     ]
@@ -120,29 +141,28 @@ def _call_claude(
             messages=api_messages,
         )
 
-        # If no tool use, extract text and return
+        # No tool use — return text directly (fast, short response)
         if response.stop_reason == "end_turn":
             text_parts = [
                 block.text
                 for block in response.content
                 if block.type == "text"
             ]
-            return AssistantResponse(
-                text="\n".join(text_parts),
+            return ToolRoundResult(
                 tool_calls=tool_call_records,
+                api_messages=api_messages,
+                direct_text="\n".join(text_parts),
             )
 
         # Handle tool use
         if response.stop_reason == "tool_use":
-            # Add assistant message with all content blocks
             api_messages.append({
                 "role": "assistant",
                 "content": [
-                    block.model_dump() for block in response.content
+                    _dump_content_block(block) for block in response.content
                 ],
             })
 
-            # Execute each tool call and collect results
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use" and block.name == "matrix_rain_easter_egg":
@@ -151,8 +171,11 @@ def _call_claude(
                         tool_input=block.input,
                         tool_result={},
                     ))
-                    return AssistantResponse(
-                        text="xD", tool_calls=tool_call_records,
+                    return ToolRoundResult(
+                        tool_calls=tool_call_records,
+                        api_messages=api_messages,
+                        direct_text="xD",
+                        is_easter_egg=True,
                     )
                 if block.type == "tool_use":
                     logger.info(
@@ -162,7 +185,6 @@ def _call_claude(
                     )
                     result_str = _execute_tool(block.name, block.input)
 
-                    # Capture parsed result for visualization
                     try:
                         parsed = json.loads(result_str)
                     except json.JSONDecodeError:
@@ -183,7 +205,12 @@ def _call_claude(
                 "role": "user",
                 "content": tool_results,
             })
-            continue
+            # Return for streaming — don't call create() for the next round
+            return ToolRoundResult(
+                tool_calls=tool_call_records,
+                api_messages=api_messages,
+                direct_text=None,
+            )
 
         # Unexpected stop reason — return whatever text we have
         text_parts = [
@@ -191,15 +218,58 @@ def _call_claude(
             for block in response.content
             if block.type == "text"
         ]
-        return AssistantResponse(
-            text="\n".join(text_parts) if text_parts else "",
+        return ToolRoundResult(
             tool_calls=tool_call_records,
+            api_messages=api_messages,
+            direct_text="\n".join(text_parts) if text_parts else "",
         )
 
-    return AssistantResponse(
-        text="Se alcanzó el límite de llamadas a herramientas. Intenta reformular tu pregunta.",
+    return ToolRoundResult(
         tool_calls=tool_call_records,
+        api_messages=api_messages,
+        direct_text="Se alcanzó el límite de llamadas a herramientas. Intenta reformular tu pregunta.",
     )
+
+
+def _stream_response(
+    client: anthropic.Anthropic, api_messages: list[dict],
+) -> Generator[str, None, None]:
+    """Stream the final text response after tool rounds complete.
+
+    Handles the rare case where the streaming round unexpectedly triggers
+    another tool call by executing the tool and continuing to stream.
+    """
+    for _ in range(MAX_TOOL_ROUNDS):
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=SYSTEM_PROMPT,
+            tools=TOOLS,
+            messages=api_messages,
+        ) as stream:
+            yield from stream.text_stream
+            final = stream.get_final_message()
+
+        if final.stop_reason == "end_turn":
+            return
+
+        if final.stop_reason == "tool_use":
+            # Rare: another tool round during streaming — handle silently
+            api_messages.append({
+                "role": "assistant",
+                "content": [_dump_content_block(b) for b in final.content],
+            })
+            tool_results = []
+            for block in final.content:
+                if block.type == "tool_use":
+                    result_str = _execute_tool(block.name, block.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result_str,
+                    })
+            api_messages.append({"role": "user", "content": tool_results})
+            continue
 
 
 def _render_sidebar():
@@ -256,6 +326,8 @@ def main():
             if msg["role"] == "assistant" and msg.get("tool_calls"):
                 render_visualizations(msg["tool_calls"])
             st.markdown(msg["content"])
+            if msg["role"] == "assistant" and msg.get("tool_calls"):
+                render_source_chunks(msg["tool_calls"])
 
     # Chat input
     if prompt := st.chat_input("Escribe tu pregunta..."):
@@ -283,41 +355,44 @@ def main():
             })
             return
 
-        # Call Claude with tool loop
+        # Call Claude with tool loop, then stream the final response
         with st.chat_message("assistant"):
             with st.spinner("Buscando en los discursos..."):
-                response = _call_claude(
-                    client,
-                    st.session_state.messages,
-                )
-            easter_egg = any(
-                tc.tool_name == "matrix_rain_easter_egg"
-                for tc in response.tool_calls
-            )
-            if easter_egg:
-                components.html(MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT)
-            elif response.tool_calls:
-                render_visualizations([
-                    {
-                        "tool_name": tc.tool_name,
-                        "tool_input": tc.tool_input,
-                        "tool_result": tc.tool_result,
-                    }
-                    for tc in response.tool_calls
-                ])
-            st.markdown(response.text)
+                result = _run_tool_rounds(client, st.session_state.messages)
 
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response.text,
-            "tool_calls": [
+            tool_call_dicts = [
                 {
                     "tool_name": tc.tool_name,
                     "tool_input": tc.tool_input,
                     "tool_result": tc.tool_result,
                 }
-                for tc in response.tool_calls
-            ],
+                for tc in result.tool_calls
+            ]
+
+            if result.is_easter_egg:
+                components.html(MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT)
+                full_text = "xD"
+            elif result.direct_text is not None:
+                # No tools called — short response, render directly
+                if tool_call_dicts:
+                    render_visualizations(tool_call_dicts)
+                st.markdown(result.direct_text)
+                full_text = result.direct_text
+            else:
+                # Tools were called — render viz, then stream the answer
+                if tool_call_dicts:
+                    render_visualizations(tool_call_dicts)
+                full_text = st.write_stream(
+                    _stream_response(client, result.api_messages)
+                )
+
+            if tool_call_dicts:
+                render_source_chunks(tool_call_dicts)
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": full_text,
+            "tool_calls": tool_call_dicts,
         })
 
 
