@@ -405,20 +405,42 @@ def main():
 
     _render_sidebar()
 
-    st.title("Asistente de Discursos de Iván Cepeda")
-    st.caption(
+    st.markdown(
+        "<h3 style='margin:0 0 0.1rem 0'>Asistente de Discursos de Iván Cepeda</h3>"
+        "<p style='margin:0 0 0.5rem 0;color:gray;font-size:0.85rem'>"
         "Pregunta sobre las propuestas, ideas y posiciones del candidato. "
-        "Las respuestas se basan exclusivamente en discursos reales."
+        "Las respuestas se basan exclusivamente en discursos reales.</p>",
+        unsafe_allow_html=True,
     )
 
-    # CSS: independent scrolling + prevent responsive column stacking
+    # CSS: lock page scroll, only panels scroll internally
     st.markdown("""<style>
+    /* Kill scrolling on every parent up to the root */
+    html, body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"],
+    section.main {
+        overflow: hidden !important;
+        height: 100vh !important;
+    }
+    [data-testid="stMainBlockContainer"] {
+        padding-top: 2.5rem !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+    }
+    /* Columns side-by-side */
     [data-testid="stMainBlockContainer"] [data-testid="stHorizontalBlock"] {
         flex-wrap: nowrap !important;
     }
     [data-testid="stMainBlockContainer"] [data-testid="stHorizontalBlock"]
+        > [data-testid="stColumn"] {
+        min-width: 0 !important;
+        overflow-x: hidden;
+    }
+    /* Only the inner column divs scroll */
+    [data-testid="stMainBlockContainer"] [data-testid="stHorizontalBlock"]
         > [data-testid="stColumn"] > div:first-child {
-        max-height: calc(100vh - 240px);
+        max-height: calc(100vh - 320px);
         overflow-y: auto;
         scrollbar-width: thin;
     }
