@@ -22,7 +22,13 @@ if _project_root not in sys.path:
 
 import anthropic
 import streamlit as st
+import streamlit.components.v1 as components
 
+from src.frontend.abuse_detector import (
+    MATRIX_RAIN_HEIGHT,
+    MATRIX_RAIN_HTML,
+    detect_abuse,
+)
 from src.frontend.prompts import SYSTEM_PROMPT, TOOLS
 from src.frontend.visualizations import render_visualizations
 from src.mcp.server import (
@@ -139,6 +145,15 @@ def _call_claude(
             # Execute each tool call and collect results
             tool_results = []
             for block in response.content:
+                if block.type == "tool_use" and block.name == "matrix_rain_easter_egg":
+                    tool_call_records.append(ToolCallRecord(
+                        tool_name=block.name,
+                        tool_input=block.input,
+                        tool_result={},
+                    ))
+                    return AssistantResponse(
+                        text="xD", tool_calls=tool_call_records,
+                    )
                 if block.type == "tool_use":
                     logger.info(
                         "Tool call: %s(%s)",
@@ -258,6 +273,16 @@ def main():
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.session_state.message_count += 1
 
+        # Easter egg: intercept obvious tech attacks
+        if detect_abuse(prompt):
+            with st.chat_message("assistant"):
+                components.html(MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT)
+                st.markdown("xD")
+            st.session_state.messages.append({
+                "role": "assistant", "content": "xD", "tool_calls": [],
+            })
+            return
+
         # Call Claude with tool loop
         with st.chat_message("assistant"):
             with st.spinner("Buscando en los discursos..."):
@@ -265,7 +290,13 @@ def main():
                     client,
                     st.session_state.messages,
                 )
-            if response.tool_calls:
+            easter_egg = any(
+                tc.tool_name == "matrix_rain_easter_egg"
+                for tc in response.tool_calls
+            )
+            if easter_egg:
+                components.html(MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT)
+            elif response.tool_calls:
                 render_visualizations([
                     {
                         "tool_name": tc.tool_name,
