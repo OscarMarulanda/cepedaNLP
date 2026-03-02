@@ -280,6 +280,55 @@ def viz_get_opinions(result: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Source chunk expanders (citation verification)
+# ---------------------------------------------------------------------------
+
+def render_source_chunks(tool_calls: list[dict]) -> None:
+    """Render collapsed expanders showing the raw chunks Claude based its answer on.
+
+    Only processes ``retrieve_chunks`` tool calls — all others are skipped.
+    Each chunk is shown in a collapsed ``st.expander`` with metadata, full text,
+    and a YouTube link so users can verify citations against the source material.
+    """
+    chunks: list[dict] = []
+    for tc in tool_calls:
+        if tc["tool_name"] != "retrieve_chunks":
+            continue
+        result = tc["tool_result"]
+        if isinstance(result, dict) and "error" in result:
+            continue
+        if isinstance(result, list):
+            chunks.extend(result)
+
+    if not chunks:
+        return
+
+    st.caption("Fragmentos fuente")
+    for chunk in chunks:
+        title = chunk.get("speech_title", "Sin título")
+        date = chunk.get("speech_date", "")
+        score = chunk.get("similarity", 0)
+        label = f"{title} — {date}  (similitud: {score:.0%})"
+
+        with st.expander(label, expanded=False):
+            event = chunk.get("speech_event", "")
+            location = chunk.get("speech_location", "")
+            meta_parts = []
+            if event:
+                meta_parts.append(f"**Evento:** {event}")
+            if location:
+                meta_parts.append(f"**Lugar:** {location}")
+            if meta_parts:
+                st.markdown(" | ".join(meta_parts))
+
+            st.markdown(chunk.get("chunk_text", ""))
+
+            yt_link = chunk.get("youtube_link")
+            if yt_link:
+                st.markdown(f"[Ver en YouTube]({yt_link})")
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 

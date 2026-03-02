@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from src.frontend.visualizations import (
     _render_colombia_map,
+    render_source_chunks,
     render_visualizations,
     viz_get_opinions,
     viz_get_speech_entities,
@@ -304,3 +305,66 @@ class TestVizGetSpeechEntitiesWithMap:
         }
         viz_get_speech_entities(data)
         assert mock_st.plotly_chart.call_count == 1  # bar only
+
+
+class TestRenderSourceChunks:
+    """Test source chunk expanders for citation verification."""
+
+    @patch("src.frontend.visualizations.st")
+    def test_renders_expanders_for_retrieve_chunks(self, mock_st):
+        tool_calls = [{
+            "tool_name": "retrieve_chunks",
+            "tool_input": {"query": "reforma agraria"},
+            "tool_result": [
+                {
+                    "chunk_id": 1, "speech_id": 1, "chunk_index": 0,
+                    "chunk_text": "La reforma agraria es fundamental...",
+                    "similarity": 0.85, "speech_title": "Discurso en Tumaco",
+                    "speech_date": "2026-02-15", "speech_location": "Tumaco",
+                    "speech_event": "Mitin", "youtube_link": "https://youtube.com/watch?v=abc&t=120",
+                },
+                {
+                    "chunk_id": 2, "speech_id": 2, "chunk_index": 3,
+                    "chunk_text": "Necesitamos redistribuir la tierra...",
+                    "similarity": 0.72, "speech_title": "Discurso en Cali",
+                    "speech_date": "2026-02-20", "speech_location": "Cali",
+                    "speech_event": "Foro", "youtube_link": None,
+                },
+            ],
+        }]
+        render_source_chunks(tool_calls)
+        mock_st.caption.assert_called_once_with("Fragmentos fuente")
+        assert mock_st.expander.call_count == 2
+
+    @patch("src.frontend.visualizations.st")
+    def test_skips_non_retrieve_chunks_tools(self, mock_st):
+        tool_calls = [{
+            "tool_name": "list_speeches",
+            "tool_input": {},
+            "tool_result": [{"id": 1, "title": "Discurso"}],
+        }]
+        render_source_chunks(tool_calls)
+        mock_st.caption.assert_not_called()
+        mock_st.expander.assert_not_called()
+
+    @patch("src.frontend.visualizations.st")
+    def test_skips_empty_results(self, mock_st):
+        tool_calls = [{
+            "tool_name": "retrieve_chunks",
+            "tool_input": {"query": "test"},
+            "tool_result": [],
+        }]
+        render_source_chunks(tool_calls)
+        mock_st.caption.assert_not_called()
+        mock_st.expander.assert_not_called()
+
+    @patch("src.frontend.visualizations.st")
+    def test_skips_error_results(self, mock_st):
+        tool_calls = [{
+            "tool_name": "retrieve_chunks",
+            "tool_input": {"query": "test"},
+            "tool_result": {"error": "embedding failed"},
+        }]
+        render_source_chunks(tool_calls)
+        mock_st.caption.assert_not_called()
+        mock_st.expander.assert_not_called()
