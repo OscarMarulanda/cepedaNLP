@@ -11,7 +11,7 @@ This project involves training conversational assistants (personality, style gui
 - Databases: SQL, PostgreSQL, MongoDB, MariaDB
 - Infrastructure: AWS, Terraform, Docker
 - Bilingual: Spanish (native), English (C2)
-- Currently: App Security Coordinator at ST&T Colombia + Software Engineer intern at AiMed
+
 
 **What he needs to demonstrate:**
 - NLP pipeline skills (tokenization, lemmatization, POS tagging, NER, parsing)
