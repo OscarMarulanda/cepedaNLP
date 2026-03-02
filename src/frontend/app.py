@@ -275,23 +275,24 @@ def _stream_response(
 def _render_sidebar():
     """Render sidebar with corpus stats and info."""
     with st.sidebar:
-        st.title("Iván Cepeda")
-        st.caption("Asistente de discursos")
+        st.markdown("**IvanCepedaNLP**  \nAsistente de discursos")
         st.divider()
 
         try:
             stats = get_corpus_stats()
-            st.metric("Discursos", stats["speeches"])
-            st.metric("Palabras", f"{stats['total_words']:,}")
-            st.metric("Fragmentos indexados", stats["chunks"])
-            st.metric("Entidades", stats["entities"])
+            c1, c2 = st.columns(2)
+            c1.metric("Discursos", stats["speeches"])
+            c2.metric("Palabras", f"{stats['total_words']:,}")
+            c3, c4 = st.columns(2)
+            c3.metric("Fragmentos", stats["chunks"])
+            c4.metric("Entidades", stats["entities"])
             st.metric("Opiniones", stats["opinions"])
         except Exception:
             st.warning("No se pudo cargar las estadísticas del corpus.")
 
         st.divider()
         st.caption(
-            f"Modelo: {MODEL}\n\n"
+            f"Modelo: {MODEL} · "
             f"Mensajes: {st.session_state.message_count}/{MAX_MESSAGES_PER_SESSION}"
         )
 
@@ -424,7 +425,7 @@ def main():
         height: 100vh !important;
     }
     [data-testid="stMainBlockContainer"] {
-        padding-top: 2.5rem !important;
+        padding-top: 3.5rem !important;
         height: 100vh !important;
         overflow: hidden !important;
     }
