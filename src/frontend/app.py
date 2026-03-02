@@ -301,6 +301,16 @@ def _render_sidebar():
             st.session_state.message_count = 0
             st.rerun()
 
+        st.divider()
+        st.caption(
+            "**Aviso:** Este asistente es un proyecto académico de "
+            "procesamiento de lenguaje natural. No es una herramienta "
+            "oficial de campaña ni representa la posición del candidato. "
+            "Las respuestas se generan exclusivamente a partir de "
+            "transcripciones de discursos públicos y pueden contener "
+            "errores de transcripción o interpretación."
+        )
+
 
 # Draggable splitter injected via st.html — runs directly in the page DOM.
 # Scrolling is handled natively by st.container(height=...).

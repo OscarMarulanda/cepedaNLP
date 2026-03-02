@@ -26,12 +26,19 @@ load_dotenv()
 
 def get_connection():
     """Create a PostgreSQL connection from .env config."""
+    ssl_kwargs = {}
+    sslrootcert = os.getenv("DB_SSLROOTCERT", "")
+    if sslrootcert:
+        ssl_kwargs["sslrootcert"] = sslrootcert
+
     conn = psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=os.getenv("DB_PORT", "5432"),
         dbname=os.getenv("DB_NAME", "cepeda_nlp"),
         user=os.getenv("DB_USER", "oscarm"),
         password=os.getenv("DB_PASSWORD", ""),
+        sslmode=os.getenv("DB_SSLMODE", "prefer"),
+        **ssl_kwargs,
     )
     if _HAS_PGVECTOR:
         register_vector(conn)
