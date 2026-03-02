@@ -127,6 +127,8 @@
 - [x] Add source citations with YouTube timestamp links
 - [x] Add inline visualizations (5 chart types + Colombia bubble map, 24 viz tests)
 - [x] Add `limit` parameter to `search_entities` tool (chart count matches user request)
+- [x] Stream final response for typewriter effect (`_run_tool_rounds` + `_stream_response`)
+- [x] Add source chunk expanders for citation verification (`render_source_chunks`, 4 tests)
 - [ ] Add ethical disclaimer
 - [ ] Test with Claude Desktop as bonus MCP client
 

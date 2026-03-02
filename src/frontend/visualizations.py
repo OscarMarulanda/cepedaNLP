@@ -303,7 +303,6 @@ def render_source_chunks(tool_calls: list[dict]) -> None:
     if not chunks:
         return
 
-    st.caption("Fragmentos fuente")
     for chunk in chunks:
         title = chunk.get("speech_title", "Sin título")
         date = chunk.get("speech_date", "")

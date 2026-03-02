@@ -333,7 +333,6 @@ class TestRenderSourceChunks:
             ],
         }]
         render_source_chunks(tool_calls)
-        mock_st.caption.assert_called_once_with("Fragmentos fuente")
         assert mock_st.expander.call_count == 2
 
     @patch("src.frontend.visualizations.st")

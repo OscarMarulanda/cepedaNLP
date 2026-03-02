@@ -2,7 +2,25 @@
 
 All notable changes to the cepedaNLP project.
 
-## 2026-03-01
+## 2026-03-01 (session 3)
+
+### Added
+- **Source chunk expanders** for citation verification (`render_source_chunks()` in `visualizations.py`):
+  - Collapsed `st.expander` per retrieved chunk — speech title, date, similarity score, full text, YouTube link
+  - Lets users verify citations against raw source material
+  - 4 new tests (28 viz tests, 177 total)
+
+### Changed
+- **Streamed Claude's final response** for better perceived latency:
+  - Split `_call_claude()` into `_run_tool_rounds()` (non-streaming tool loop) + `_stream_response()` (generator using `client.messages.stream()`)
+  - Tool rounds run via `create()`, final text streams token-by-token via `st.write_stream()`
+  - No-tool responses (greetings) render instantly via `st.markdown()`
+  - Replaced `AssistantResponse` dataclass with `ToolRoundResult`
+
+### Fixed
+- **Anthropic SDK serialization error** — `TextBlock.model_dump()` includes SDK-internal `parsed_output` field rejected by the API ("Extra inputs are not permitted"). Added `_dump_content_block()` helper that serializes only API-accepted fields.
+
+## 2026-03-01 (sessions 1-2)
 
 ### Added
 - **HuggingFace Inference API for query embeddings** (`feature/hf-embedding-api` branch):
