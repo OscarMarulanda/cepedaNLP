@@ -142,7 +142,7 @@ MATRIX_RAIN_HTML = """
   const drops = new Array(columns).fill(1);
 
   const startTime = Date.now();
-  const duration = 3000;
+  const duration = 6000;
   const fadeStart = 2500;
 
   function draw() {
