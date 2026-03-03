@@ -2,6 +2,42 @@
 
 All notable changes to the cepedaNLP project.
 
+## 2026-03-03
+
+### Added
+- **Security middleware for MCP SSE endpoint** (`src/mcp/middleware.py`):
+  - `APIKeyMiddleware` — Bearer token auth, optional via `MCP_API_KEY` env var, skips `/health`
+  - `RateLimitMiddleware` — per-IP sliding window (default 30 req/min via `MCP_RATE_LIMIT`), in-memory, periodic stale-IP cleanup
+  - `SSEConnectionMiddleware` — per-IP concurrent SSE connection limiter (default 5, configurable via `MCP_MAX_SSE_CONNS`)
+  - All skip `/health` for Render health checks
+  - No new dependencies (Starlette `BaseHTTPMiddleware`)
+- `MCP_API_KEY` and `MCP_RATE_LIMIT` env vars in `render.yaml`
+- Auth header instructions in `docs/MCP_CLIENT_SETUP.md` (all client configs updated)
+- 401/429 troubleshooting entries in `docs/MCP_CLIENT_SETUP.md`
+
+### Changed
+- `run_mcp.py` — wires middleware stack via `mcp.http_app(middleware=[...])`
+
+### Security
+- Hardened API key validation against side-channel attacks
+- Hardened client IP extraction for proxy-aware rate limiting
+- Added SSE connection limiting to prevent resource exhaustion
+- Upgraded Render DB transport to `verify-full` with bundled CA certificate
+- Hardened ILIKE query input handling in `search_entities`
+
+## 2026-03-02 (session 3)
+
+### Added
+- **Render deployment for MCP server** — public SSE endpoint at `https://cepeda-nlp-mcp.onrender.com/sse`:
+  - `run_mcp.py` — programmatic entry point (uvicorn, `/health` route)
+  - `render.yaml` — Render IaC (env vars, build/start commands, health check)
+  - `requirements-mcp.txt` — lean 6-package dependency file (no Streamlit, no Anthropic)
+  - `.python-version` for Render's Python version detection
+- Production (Supabase) connection instructions in `docs/MCP_CLIENT_SETUP.md`
+
+### Fixed
+- **Lazy-import `ask()` in `src/rag/__init__.py`** — top-level import pulled `query → generator → anthropic`, making MCP server depend on the `anthropic` package unnecessarily. Wrapped in lazy function.
+
 ## 2026-03-02 (session 2)
 
 ### Added

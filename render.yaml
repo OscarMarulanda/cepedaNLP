@@ -15,7 +15,9 @@ services:
       - key: DB_NAME
         value: postgres
       - key: DB_SSLMODE
-        value: require
+        value: verify-full
+      - key: DB_SSLROOTCERT
+        value: certs/supabase-ca.crt
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD

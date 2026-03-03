@@ -6,6 +6,7 @@ binding. Adds a /health route for Render's health checks.
 Security middleware (applied in order):
 1. APIKeyMiddleware — Bearer token auth (only if MCP_API_KEY is set)
 2. RateLimitMiddleware — per-IP sliding window (default 30 req/min)
+3. SSEConnectionMiddleware — per-IP concurrent SSE connection limit (default 5)
 
 Usage:
     PORT=8000 python run_mcp.py                          # no auth (dev)
@@ -20,7 +21,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from src.mcp.middleware import APIKeyMiddleware, RateLimitMiddleware
+from src.mcp.middleware import (
+    APIKeyMiddleware,
+    RateLimitMiddleware,
+    SSEConnectionMiddleware,
+)
 from src.mcp.server import mcp
 
 logging.basicConfig(
@@ -43,6 +48,7 @@ if os.getenv("MCP_API_KEY"):
     logger.info("API key authentication enabled")
 
 middleware.append(Middleware(RateLimitMiddleware))
+middleware.append(Middleware(SSEConnectionMiddleware))
 
 app = mcp.http_app(transport="sse", middleware=middleware)
 app.routes.append(Route("/health", health))

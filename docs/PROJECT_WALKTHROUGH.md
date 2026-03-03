@@ -324,7 +324,7 @@ Full evaluation documented in `docs/NER_MODEL_EVALUATION.md`.
 - **Decomposed storage:** NLP analysis is NOT stored as a single blob. Entities and annotations are normalized into separate tables for efficient querying (e.g., "find all speeches mentioning Bogota" is a simple SQL query).
 - **JSONB for flexibility:** Tokens, POS tags, and dependency parses are stored as JSONB, allowing schema evolution without migrations.
 - **ON DELETE CASCADE:** All foreign keys cascade from `speeches`, ensuring data consistency.
-- **Transport security:** Remote DB connections use `DB_SSLMODE=require` to enforce TLS encryption. See `docs/DB_CONNECTION_SECURITY.md`.
+- **Transport security:** Remote DB connections use `DB_SSLMODE=verify-full` with bundled CA certificate to enforce TLS encryption and server identity verification. See `docs/DB_CONNECTION_SECURITY.md`.
 
 ---
 
@@ -362,7 +362,7 @@ The original plan called for "dependency parse ROOT boundaries" — splitting te
 
 The chunking strategy is documented in detail in `docs/RAG_DESIGN_DECISIONS.md`.
 
-**Current stats:** 10 speeches → 131 chunks (avg ~13 per speech, ~10:1 compression ratio from sentences).
+**Current stats:** 14 speeches → 174 chunks (avg ~12 per speech, ~10:1 compression ratio from sentences).
 
 ---
 
@@ -484,14 +484,16 @@ python -m src.rag.query "¿Que propone sobre el racismo?"
 - Each tool is a pure Python function that queries PostgreSQL and returns structured data.
 - **No LLM calls happen inside the tools.** They are pure data fetchers. Claude (running in the Streamlit frontend) decides which tools to call and when.
 - The tools can also be connected to Claude Desktop for direct interaction.
+- The public SSE endpoint (`run_mcp.py`) is protected by three middleware layers: API key authentication (constant-time), proxy-aware per-IP rate limiting, and SSE connection limiting (`src/mcp/middleware.py`).
 
 **Tools/libraries:** `fastmcp>=3.0`, `psycopg2`, `pgvector`, `sentence-transformers`
 
 **Key files:**
-- `src/mcp/server.py` — 8 tool definitions
+- `src/mcp/server.py` — 9 tool definitions
 - `src/mcp/db.py` — lightweight DB connection (avoids importing heavy NLP modules)
+- `src/mcp/middleware.py` — API key auth + rate limiting + SSE connection limiting middleware
 
-**The 8 MCP tools:**
+**The 9 MCP tools:**
 
 | Tool | Type | Purpose |
 |------|------|---------|
@@ -503,6 +505,7 @@ python -m src.rag.query "¿Que propone sobre el racismo?"
 | `get_corpus_stats` | Read | Aggregate statistics (speech count, word count, entity count, etc.) |
 | `submit_opinion` | **Write** | Save a user's opinion about the candidate (text + will_win boolean) |
 | `get_opinions` | Read | Retrieve user opinions with summary statistics |
+| `matrix_rain_easter_egg` | Read | Easter egg — triggers Matrix rain animation for creative abuse attempts |
 
 **Design decisions and changes — MCP-only architecture:**
 
@@ -579,10 +582,11 @@ Streamlit renders the response with clickable YouTube links
 ```
 
 **Design decisions:**
-- **No streaming:** The full response is generated and displayed at once (with a spinner during processing). Token-by-token streaming was not implemented.
+- **Streaming responses:** The final Claude response is streamed token-by-token for a typewriter effect. `_run_tool_rounds()` handles tool execution loops (non-streaming `create()` calls), then `_stream_response()` streams the final text via `client.messages.stream()`. `st.write_stream()` renders the tokens as they arrive. No-tool responses (greetings) render instantly via `st.markdown()`.
 - **Session-based rate limiting:** 30 messages per session. No authentication — sufficient for demo/MVP scale.
 - **API key safety:** Because Streamlit runs Python server-side, the Anthropic API key is never exposed to the browser.
 - **Tool dispatch is direct:** MCP tools are imported from `src/mcp/server` and called as local Python functions — no HTTP, no IPC, no serialization overhead. This means the MCP layer is **not a network attack surface** — there is nothing to intercept between Streamlit and the tools.
+- **Abuse detection:** Two-layer defense against prompt injection and abuse. Layer 1: regex pre-LLM filter (`src/frontend/abuse_detector.py`) catches structural attacks (SQLi, XSS, prompt injection keywords) at zero API cost. Layer 2: `matrix_rain_easter_egg` MCP tool lets Claude trigger a Matrix rain animation for creative social-engineering attacks that bypass regex.
 
 **Known issue — Haiku tool hallucination:** In rare cases, Haiku fabricated tool results without actually calling the tool (e.g., returning a fake `opinion_id`). Fixed by adding explicit rules to the system prompt: `"NUNCA finjas haberla guardado"` (never pretend you saved it without calling the tool). If the issue recurs, the orchestrator can be upgraded to Sonnet.
 
@@ -646,15 +650,19 @@ nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 
 
 ## 17. Test Suite
 
-**29 tests** across 4 test files, all passing.
+**177 tests** across multiple test files, all passing.
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | `tests/corpus/test_diarizer.py` | 8 | Timestamp remapping, audio extraction, reference embedding loading |
 | `tests/rag/test_chunker.py` | 11 | Sentence grouping, overlap, runt merging, word count, timestamp mapping |
 | `tests/rag/test_retriever.py` | 4 | YouTube link construction, similarity threshold filtering, empty results |
-| `tests/mcp/test_tools.py` | 15 | All 8 MCP tools (data access, opinion writes, `conn.commit()` verification) |
+| `tests/rag/test_embedder.py` | 4 | Embedding provider switching (local vs HF API) |
+| `tests/mcp/test_tools.py` | 15 | All 9 MCP tools (data access, opinion writes, `conn.commit()` verification) |
 | `tests/mcp/test_security.py` | 9 | SQL injection prevention, input validation, opinion security |
+| `tests/frontend/test_abuse_detector.py` | 75 | Regex-based abuse detection patterns (SQLi, XSS, prompt injection) |
+| `tests/frontend/test_visualizations.py` | 28 | Chart rendering, Colombia bubble map, source chunk expanders |
+| Other test files | 23 | Additional coverage across modules |
 
 **Testing approach:**
 - Unit tests with mocked DB connections (no live database required)
@@ -665,25 +673,25 @@ nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 
 
 ## 18. Deployment Architecture
 
-**Principle: Process locally, serve from AWS.**
+**Principle: Process locally, serve from cloud (all free tiers).**
 
 ```
-Mac Mini (local)                    AWS
-├── yt-dlp (download)               ├── RDS PostgreSQL 17 + pgvector
-├── pyannote (diarize)               ├── EC2/ECS (Streamlit + MCP)
-├── Whisper (transcribe)             ├── Claude API calls
-├── spaCy + BETO (NLP)              └── Route 53 + ACM (domain/SSL)
-├── sentence-transformers (embed)
-└── pipeline_runner ──writes to──→ RDS
+Mac Mini (local)                    Cloud
+├── yt-dlp (download)               ├── Supabase PostgreSQL 17 + pgvector (free tier)
+├── pyannote (diarize)               ├── Streamlit Community Cloud (frontend + Claude orchestration)
+├── Whisper (transcribe)             ├── Render (MCP SSE server, API key + rate limiting)
+├── spaCy + BETO (NLP)              ├── Claude API (Haiku 4.5)
+├── sentence-transformers (embed)   └── HuggingFace Inference API (query embedding)
+└── pipeline_runner ──writes to──→ Supabase
 ```
 
-**Sync method:** Point the pipeline at the remote RDS endpoint by changing `DB_HOST` in `.env`. No export/import needed — the pipeline writes directly to production DB.
+**Sync method:** Point the pipeline at the Supabase endpoint by changing `DB_HOST` in `.env`. No export/import needed — the pipeline writes directly to production DB.
 
-**Connection security:** Remote DB connections use `DB_SSLMODE=require` to enforce TLS encryption over the internet. MCP tool calls stay in-process (no network hop). Full analysis in `docs/DB_CONNECTION_SECURITY.md`.
+**Connection security:** Remote DB connections use `DB_SSLMODE=verify-full` with bundled Supabase CA cert. MCP tool calls from Streamlit stay in-process (no network hop). The public MCP SSE endpoint on Render is protected by three middleware layers: API key authentication, per-IP rate limiting, and SSE connection limiting. Full analysis in `docs/DB_CONNECTION_SECURITY.md`.
 
-**Cost estimate:** ~$10–35/month (RDS t3.micro + EC2 t3.small + Claude API at demo scale).
+**Cost:** $0/month (all free tiers) + ~$0.0047/query Claude API. Interview demo (50 queries) costs ~$0.23.
 
-**Why not process on AWS?** The M4 Mac Mini handles Whisper + pyannote + spaCy for free. AWS GPU instances (g4dn.xlarge) would cost ~$0.03/speech but add operational complexity. Full corpus processing: ~8 hours local (free) vs. ~4 hours on AWS (~$2.10).
+**Why not process on cloud?** The M4 Mac Mini handles Whisper + pyannote + spaCy for free. Cloud GPU instances would add cost and operational complexity. Full corpus processing: ~8 hours local (free).
 
 Documented in `docs/DEPLOYMENT_ARCHITECTURE.md`.
 
@@ -705,7 +713,7 @@ Documented in `docs/DEPLOYMENT_ARCHITECTURE.md`.
 | **Processing model** | Stream (one speech at a time) | Batch (all at once) | ~60MB peak disk vs. 100GB+ intermediate files |
 | **Deployment** | Process locally, serve from AWS | Full cloud | Free local compute; only pay for serving |
 
-All major decisions are documented as Architecture Decision Records (ADRs) in `docs/decisions/001-007.md`.
+All major decisions are documented as Architecture Decision Records (ADRs) in `docs/decisions/001-009.md`.
 
 ---
 
@@ -737,8 +745,8 @@ All major decisions are documented as Architecture Decision Records (ADRs) in `d
 | **Corpus Building** | `src/corpus/downloader.py`, `src/corpus/diarizer.py`, `src/corpus/transcriber.py`, `src/corpus/cleaner.py`, `src/corpus/db_loader.py`, `src/corpus/pipeline_runner.py` |
 | **NLP Pipeline** | `src/pipeline/nlp_processor.py`, `src/pipeline/tokenizer.py`, `src/pipeline/pos_tagger.py`, `src/pipeline/ner_extractor.py`, `src/pipeline/parser.py` |
 | **RAG System** | `src/rag/chunker.py`, `src/rag/embedder.py`, `src/rag/retriever.py`, `src/rag/generator.py`, `src/rag/query.py`, `src/rag/backfill.py` |
-| **MCP Server** | `src/mcp/server.py`, `src/mcp/db.py` |
-| **Frontend** | `src/frontend/app.py`, `src/frontend/prompts.py` |
+| **MCP Server** | `src/mcp/server.py`, `src/mcp/db.py`, `src/mcp/middleware.py`, `run_mcp.py` |
+| **Frontend** | `src/frontend/app.py`, `src/frontend/prompts.py`, `src/frontend/abuse_detector.py`, `src/frontend/visualizations.py` |
 | **Data** | `data/gazetteer/colombian_locations.txt`, `data/reference_embedding.npy`, `data/speech_manifest.json` |
 | **Schema** | `schema.sql` |
 | **Tests** | `tests/corpus/test_diarizer.py`, `tests/rag/test_chunker.py`, `tests/rag/test_retriever.py`, `tests/mcp/test_tools.py`, `tests/mcp/test_security.py` |

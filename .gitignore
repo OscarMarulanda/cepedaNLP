@@ -62,6 +62,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Security
+docs/SECURITY_VULNERABILITIES.md
+
 # Pytest
 .pytest_cache/
 htmlcov/

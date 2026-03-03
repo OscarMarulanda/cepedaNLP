@@ -1,12 +1,14 @@
 """Security middleware for the MCP SSE server.
 
-Two middleware classes:
+Three middleware classes:
 - APIKeyMiddleware: Bearer token authentication (optional, controlled by MCP_API_KEY)
 - RateLimitMiddleware: Per-IP sliding window rate limiter (in-memory)
+- SSEConnectionMiddleware: Per-IP concurrent SSE connection limiter
 
-Both skip /health so Render health checks work without auth.
+All skip /health so Render health checks work without auth.
 """
 
+import hmac
 import logging
 import os
 import time
@@ -19,6 +21,7 @@ from starlette.responses import JSONResponse, Response
 logger = logging.getLogger(__name__)
 
 SKIP_PATHS = {"/health"}
+SSE_PATHS = {"/sse", "/messages"}
 
 # Cleanup stale entries every 5 minutes
 _CLEANUP_INTERVAL = 300
@@ -51,7 +54,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             )
 
         token = auth_header[7:]  # len("Bearer ") == 7
-        if token != self.api_key:
+        if not hmac.compare_digest(token, self.api_key):
             return JSONResponse(
                 {"error": "Invalid API key"},
                 status_code=401,
@@ -80,9 +83,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._last_cleanup = time.monotonic()
 
     def _get_client_ip(self, request: Request) -> str:
+        """Extract real client IP from X-Forwarded-For.
+
+        Uses the rightmost value — the one appended by the closest trusted
+        proxy (Render). The leftmost value is client-supplied and spoofable.
+        """
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            return forwarded.split(",")[-1].strip()
         client = request.client
         return client.host if client else "unknown"
 
@@ -136,3 +144,52 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response.headers["X-RateLimit-Limit"] = str(self.max_requests)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
         return response
+
+
+class SSEConnectionMiddleware(BaseHTTPMiddleware):
+    """Per-IP concurrent SSE connection limiter.
+
+    SSE connections are long-lived. Without a limit, an attacker can exhaust
+    server resources by opening hundreds of persistent connections.
+    Configurable via MCP_MAX_SSE_CONNS env var (default: 5 per IP).
+    """
+
+    def __init__(self, app, max_conns: int | None = None) -> None:  # noqa: D107
+        super().__init__(app)
+        self.max_conns = max_conns or int(
+            os.getenv("MCP_MAX_SSE_CONNS", "5")
+        )
+        # {ip: active_connection_count}
+        self._active: dict[str, int] = defaultdict(int)
+
+    def _get_client_ip(self, request: Request) -> str:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[-1].strip()
+        client = request.client
+        return client.host if client else "unknown"
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        if request.url.path not in SSE_PATHS:
+            return await call_next(request)
+
+        ip = self._get_client_ip(request)
+
+        if self._active[ip] >= self.max_conns:
+            logger.warning(
+                "SSE connection limit reached for %s (%d/%d)",
+                ip, self._active[ip], self.max_conns,
+            )
+            return JSONResponse(
+                {"error": "Too many concurrent connections"},
+                status_code=429,
+            )
+
+        self._active[ip] += 1
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            self._active[ip] -= 1
+            if self._active[ip] <= 0:
+                del self._active[ip]

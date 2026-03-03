@@ -98,7 +98,7 @@ Full analysis: `docs/DB_CONNECTION_SECURITY.md`, ADR: `docs/decisions/008-db-ssl
 
 ## MCP Server (Render)
 
-A standalone MCP server is deployed on Render, providing a public SSE endpoint for external MCP clients (Claude Desktop, Claude Code, Cursor, Kiro, etc.) — zero setup, zero secrets for consumers.
+A standalone MCP server is deployed on Render, providing a public SSE endpoint for external MCP clients (Claude Desktop, Claude Code, Cursor, Kiro, etc.).
 
 - **URL:** `https://cepeda-nlp-mcp.onrender.com/sse`
 - **Health check:** `https://cepeda-nlp-mcp.onrender.com/health`
@@ -108,6 +108,18 @@ A standalone MCP server is deployed on Render, providing a public SSE endpoint f
 - **Embedding:** `EMBEDDING_PROVIDER=hf_api` (local model is ~868 MB, won't fit in 512 MB)
 - **Cold starts:** Render free tier spins down after 15 min idle; first request takes 30-60s
 - **IaC:** `render.yaml` — one-click deploy via Render dashboard
+
+### Security
+
+Three middleware layers protect the SSE endpoint (`src/mcp/middleware.py`):
+
+1. **API key authentication** — `Authorization: Bearer <key>` header required on all endpoints except `/health`. Constant-time comparison to resist side-channel analysis. Controlled by `MCP_API_KEY` env var (Render secret). Disabled when env var is unset (dev convenience).
+2. **Per-IP rate limiting** — sliding window, 30 requests/minute (configurable via `MCP_RATE_LIMIT`). Proxy-aware IP extraction (rightmost `X-Forwarded-For` value). In-memory storage (single Render instance). Returns 429 with `Retry-After` header.
+3. **SSE connection limiting** — per-IP concurrent connection cap (default 5, configurable via `MCP_MAX_SSE_CONNS`). Prevents resource exhaustion from long-lived SSE connections.
+
+All skip `/health` so Render health checks work without auth.
+
+DB transport uses `verify-full` SSL with the bundled Supabase CA certificate for full server identity verification.
 
 This is independent from the Streamlit frontend. Streamlit runs its own in-process MCP server; the Render deployment serves external clients only.
 

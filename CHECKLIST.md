@@ -147,6 +147,9 @@
 - [x] Configure Streamlit Cloud secrets
 - [x] Deploy to Streamlit Community Cloud
 - [x] Verify HF Inference API embedding works in production
+- [x] Deploy MCP SSE server on Render (`run_mcp.py`, `render.yaml`, `requirements-mcp.txt`)
+- [x] Add API key auth + per-IP rate limiting to MCP SSE endpoint (`src/mcp/middleware.py`)
+- [x] Security hardening pass on MCP middleware (key validation, IP extraction, connection limits, DB SSL, query input)
 - [ ] Download Supabase CA cert from dashboard (currently extracted via openssl)
 
 ## Phase 7: Final Polish

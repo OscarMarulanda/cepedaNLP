@@ -27,6 +27,11 @@ mcp = FastMCP("CepedaNLP")
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _escape_like(text: str) -> str:
+    """Escape LIKE/ILIKE metacharacters so they match literally."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _youtube_link(youtube_url: str | None, start_time: int | None) -> str | None:
     """Build a timestamped YouTube link (same logic as retriever.py)."""
     if not youtube_url:
@@ -225,8 +230,8 @@ def search_entities(
     params: list = []
 
     if entity_text:
-        conditions.append("e.entity_text ILIKE %s")
-        params.append(f"%{entity_text}%")
+        conditions.append("e.entity_text ILIKE %s ESCAPE '\\'")
+        params.append(f"%{_escape_like(entity_text)}%")
     if entity_label:
         conditions.append("e.entity_label = %s")
         params.append(entity_label.upper())
