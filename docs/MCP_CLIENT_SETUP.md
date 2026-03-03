@@ -1,224 +1,100 @@
 # Connecting to the CepedaNLP MCP Server
 
-The CepedaNLP MCP server exposes 9 tools for querying the political speech corpus. Any MCP-compatible AI agent can connect to it.
+The CepedaNLP MCP server exposes 8 tools for querying a corpus of political speeches by Iván Cepeda. Any MCP-compatible AI agent can connect to it.
 
-## Two ways to connect
-
-| Mode | Database | Embedding | Use case |
-|------|----------|-----------|----------|
-| **Local** | Local PostgreSQL (`cepeda_nlp`) | Local model or HF API | Development, full pipeline access |
-| **Production** | Supabase (deployed) | HF API | Demo, remote agents, no local setup needed |
-
-Both use the same MCP server code — only the environment variables differ.
+**No database credentials or API keys required.** The server handles all database connections and embeddings internally. Clients simply connect to the SSE endpoint and call tools.
 
 ---
 
-## Local setup
+## Public SSE endpoint
 
-### Prerequisites
+A public instance is available — no setup, no secrets, no cloning:
 
-1. **PostgreSQL running** with the `cepeda_nlp` database populated (speeches, entities, chunks with embeddings).
+```
+https://cepeda-nlp-mcp.onrender.com/sse
+```
 
-2. **Python environment** with dependencies installed:
+> **Cold starts:** Render free tier spins down after 15 minutes of inactivity. The first request after idle may take 30-60 seconds while the server starts up. Subsequent requests are fast.
 
-   ```bash
-   cd /path/to/cepedaNLP
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements-full.txt
-   ```
-
-3. **Environment variables** — create a `.env` file at the project root (see `.env.example`):
-
-   ```env
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=cepeda_nlp
-   DB_USER=oscarm
-   DB_PASSWORD=
-   DB_SSLMODE=prefer
-   ANTHROPIC_API_KEY=sk-ant-...       # only needed if the client uses Claude
-   EMBEDDING_PROVIDER=local           # or hf_api (see below)
-   HF_TOKEN=hf_...                    # only needed if EMBEDDING_PROVIDER=hf_api
-   ```
-
-   The `retrieve_chunks` tool embeds the query before searching. By default it loads `paraphrase-multilingual-mpnet-base-v2` locally (~868 MB). Set `EMBEDDING_PROVIDER=hf_api` to offload embedding to the HuggingFace Inference API instead.
+Use this URL in any of the client configurations below.
 
 ---
 
-## Production setup (Supabase)
+## Quick start (connect as a client)
 
-To connect to the deployed production database without running a local PostgreSQL:
+### Claude Desktop
 
-### Prerequisites
-
-1. **Python environment** (same as local, but only needs the slim dependencies):
-
-   ```bash
-   cd /path/to/cepedaNLP
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **Environment variables** — set in `.env`:
-
-   ```env
-   DB_HOST=aws-0-us-west-2.pooler.supabase.com
-   DB_PORT=5432
-   DB_NAME=postgres
-   DB_USER=postgres.airqmqvntfdvhivoenlj
-   DB_PASSWORD=<supabase password>
-   DB_SSLMODE=verify-full
-   DB_SSLROOTCERT=certs/supabase-ca.crt
-   EMBEDDING_PROVIDER=hf_api
-   HF_TOKEN=hf_...
-   ```
-
-   No local PostgreSQL needed. The HF token must have "Inference Providers" permission (create a fine-grained token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)).
-
-## Transport modes
-
-The server supports two transports:
-
-| Transport | Command | Use case |
-|-----------|---------|----------|
-| **STDIO** | `python -m src.mcp.server` | Claude Desktop, local agents |
-| **SSE**   | `fastmcp run src/mcp/server.py --transport sse --port 8000` | Remote agents, HTTP clients |
-
-## Claude Desktop
-
-Add this to your Claude Desktop config file:
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-**Local database:**
+Add to your config file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "command": "/path/to/cepedaNLP/venv/bin/python",
-      "args": ["-m", "src.mcp.server"],
-      "cwd": "/path/to/cepedaNLP",
-      "env": {
-        "DB_HOST": "localhost",
-        "DB_PORT": "5432",
-        "DB_NAME": "cepeda_nlp",
-        "DB_USER": "oscarm",
-        "EMBEDDING_PROVIDER": "local"
-      }
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
     }
   }
 }
 ```
 
-**Production (Supabase):**
+Restart Claude Desktop after editing.
+
+### Claude Code
+
+Add a `.mcp.json` file to your project root:
 
 ```json
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "command": "/path/to/cepedaNLP/venv/bin/python",
-      "args": ["-m", "src.mcp.server"],
-      "cwd": "/path/to/cepedaNLP",
-      "env": {
-        "DB_HOST": "aws-0-us-west-2.pooler.supabase.com",
-        "DB_PORT": "5432",
-        "DB_NAME": "postgres",
-        "DB_USER": "postgres.airqmqvntfdvhivoenlj",
-        "DB_PASSWORD": "<supabase password>",
-        "DB_SSLMODE": "verify-full",
-        "DB_SSLROOTCERT": "certs/supabase-ca.crt",
-        "EMBEDDING_PROVIDER": "hf_api",
-        "HF_TOKEN": "<your HF token>"
-      }
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
     }
   }
 }
 ```
 
-Replace `/path/to/cepedaNLP` with the actual project path. Restart Claude Desktop after editing.
+### Kiro (AWS)
 
-## Claude Code
-
-Add a `.mcp.json` file at the project root:
+Add to `.kiro/settings.json` or workspace config:
 
 ```json
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "command": "./venv/bin/python",
-      "args": ["-m", "src.mcp.server"],
-      "cwd": "."
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
     }
   }
 }
 ```
 
-Claude Code reads `.mcp.json` automatically on startup. The `.env` file in the project root provides database credentials.
+### Cursor
 
-## Kiro (AWS)
-
-Kiro uses the same MCP configuration format as Claude Code. Add to your project's `.kiro/settings.json` or the workspace config:
-
-```json
-{
-  "mcpServers": {
-    "cepeda-nlp": {
-      "command": "/path/to/cepedaNLP/venv/bin/python",
-      "args": ["-m", "src.mcp.server"],
-      "cwd": "/path/to/cepedaNLP"
-    }
-  }
-}
-```
-
-## Cursor
-
-In Cursor, go to **Settings > MCP Servers > Add Server** and configure:
+Go to **Settings > MCP Servers > Add Server** and configure:
 
 - **Name:** `cepeda-nlp`
-- **Type:** `command`
-- **Command:** `/path/to/cepedaNLP/venv/bin/python -m src.mcp.server`
+- **Type:** `sse`
+- **URL:** `https://cepeda-nlp-mcp.onrender.com/sse`
 
-Or add to `.cursor/mcp.json` in the project root:
-
-```json
-{
-  "mcpServers": {
-    "cepeda-nlp": {
-      "command": "/path/to/cepedaNLP/venv/bin/python",
-      "args": ["-m", "src.mcp.server"],
-      "cwd": "/path/to/cepedaNLP"
-    }
-  }
-}
-```
-
-## SSE transport (remote/HTTP agents)
-
-For agents that connect over HTTP instead of STDIO:
-
-```bash
-# Start the server
-cd /path/to/cepedaNLP
-source venv/bin/activate
-fastmcp run src/mcp/server.py --transport sse --port 8000
-```
-
-Then configure the client to connect to `http://localhost:8000/sse` (or the remote host). Example for Claude Desktop with SSE:
+Or add to `.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "url": "http://localhost:8000/sse"
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
     }
   }
 }
 ```
+
+### Any MCP client (generic)
+
+Point your MCP client at the SSE endpoint: `https://cepeda-nlp-mcp.onrender.com/sse`. No authentication headers or API keys are needed — the server is self-contained.
+
+### Self-hosted endpoint
+
+If you run your own instance (see [Self-hosting](#self-hosting-the-server) below), replace the public URL with your own: `http://<host>:<port>/sse`.
+
+---
 
 ## Available tools
 
@@ -232,7 +108,8 @@ Then configure the client to connect to `http://localhost:8000/sse` (or the remo
 | 6 | `get_corpus_stats` | Corpus-wide statistics | — |
 | 7 | `submit_opinion` | Save a user opinion | `opinion_text` (str), `will_win` (bool) |
 | 8 | `get_opinions` | Retrieve user opinions + summary stats | `will_win` (bool, optional), `limit` (int, default 20) |
-| 9 | `matrix_rain_easter_egg` | Trigger easter egg animation | `reason` (str) |
+
+All tool descriptions and parameter hints are in Spanish, matching the speech corpus language.
 
 ## Verifying the connection
 
@@ -249,15 +126,122 @@ Once connected, ask the agent to call `get_corpus_stats`. You should see somethi
 }
 ```
 
-If you get a connection error, verify the database is reachable and the credentials in `.env` are correct.
+---
+
+## Self-hosting the server
+
+This section is for **server operators** who want to run their own instance of the MCP server. Clients connecting to your endpoint do not need any of this — they just use the SSE URL.
+
+### Prerequisites
+
+1. **Python 3.13+** with a virtual environment:
+
+   ```bash
+   cd /path/to/cepedaNLP
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt        # slim deploy deps
+   # or: pip install -r requirements-full.txt  # full pipeline + dev deps
+   ```
+
+2. **PostgreSQL** with the `cepeda_nlp` database populated (speeches, entities, chunks with embeddings) and the `pgvector` extension enabled.
+
+3. **Environment variables** — create a `.env` file at the project root:
+
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=cepeda_nlp
+   DB_USER=<your db user>
+   DB_PASSWORD=<your db password>
+   DB_SSLMODE=prefer
+   EMBEDDING_PROVIDER=local               # or hf_api
+   HF_TOKEN=hf_...                        # only needed if EMBEDDING_PROVIDER=hf_api
+   ```
+
+   The `retrieve_chunks` tool embeds the query before searching. By default it loads `paraphrase-multilingual-mpnet-base-v2` locally (~868 MB). Set `EMBEDDING_PROVIDER=hf_api` to offload embedding to the HuggingFace Inference API instead (requires an HF token with "Inference Providers" permission).
+
+### Running the server
+
+| Transport | Command | Use case |
+|-----------|---------|----------|
+| **SSE** (recommended) | `fastmcp run src/mcp/server.py --transport sse --port 8000` | Remote agents, HTTP clients |
+| **STDIO** | `python -m src.mcp.server` | Local agents (Claude Desktop, Claude Code) |
+
+**SSE** is the recommended transport for serving external clients. The server binds to the specified port and clients connect to `http://<host>:<port>/sse`.
+
+**STDIO** is useful when the server operator is also the client (e.g., running Claude Desktop on the same machine). In this case, the agent launches the server process directly.
+
+### STDIO configuration (local use only)
+
+When running server and client on the same machine, you can use STDIO instead of SSE. This requires the server operator to configure the agent with the Python path and project directory.
+
+**Claude Desktop (STDIO):**
+
+```json
+{
+  "mcpServers": {
+    "cepeda-nlp": {
+      "command": "/path/to/cepedaNLP/venv/bin/python",
+      "args": ["-m", "src.mcp.server"],
+      "cwd": "/path/to/cepedaNLP"
+    }
+  }
+}
+```
+
+**Claude Code (STDIO):**
+
+```json
+{
+  "mcpServers": {
+    "cepeda-nlp": {
+      "command": "./venv/bin/python",
+      "args": ["-m", "src.mcp.server"],
+      "cwd": "."
+    }
+  }
+}
+```
+
+The `.env` file in the project root provides database credentials automatically.
+
+### Connecting to a remote database (e.g., Supabase)
+
+To run the server locally but connect to a remote PostgreSQL, set the connection variables in `.env`:
+
+```env
+DB_HOST=<remote host>
+DB_PORT=5432
+DB_NAME=<database name>
+DB_USER=<database user>
+DB_PASSWORD=<database password>
+DB_SSLMODE=verify-full
+DB_SSLROOTCERT=certs/<provider>-ca.crt
+EMBEDDING_PROVIDER=hf_api
+HF_TOKEN=hf_...
+```
+
+No local PostgreSQL needed. Ensure the CA certificate file exists at the path specified by `DB_SSLROOTCERT`.
+
+---
 
 ## Troubleshooting
 
+### Client issues
+
 | Problem | Fix |
 |---------|-----|
-| `ModuleNotFoundError: No module named 'src'` | Make sure `cwd` points to the project root, not `src/` |
-| `psycopg2.OperationalError: connection refused` | **Local:** Start PostgreSQL: `brew services start postgresql@17`. **Production:** Check `DB_HOST` and `DB_PASSWORD` in `.env` |
-| `retrieve_chunks` is slow on first call | The embedding model (~868 MB) loads on first query. Subsequent calls are fast. Use `EMBEDDING_PROVIDER=hf_api` to skip local loading. |
-| `pgvector` import error | Install: `pip install pgvector` and ensure the `vector` extension is enabled in PostgreSQL |
-| `403 Forbidden` from HuggingFace | HF token lacks "Inference Providers" permission. Create a fine-grained token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) with that permission enabled. |
-| SSL certificate error with Supabase | Ensure `DB_SSLROOTCERT=certs/supabase-ca.crt` points to the bundled cert file (relative to project root). |
+| Connection refused / timeout | Verify the SSE endpoint URL is correct and the server is running. |
+| Tools not appearing | Restart your MCP client after updating the configuration. |
+
+### Server operator issues
+
+| Problem | Fix |
+|---------|-----|
+| `ModuleNotFoundError: No module named 'src'` | Make sure `cwd` points to the project root, not `src/`. |
+| `psycopg2.OperationalError: connection refused` | Start PostgreSQL or verify `DB_HOST` and `DB_PASSWORD` in `.env`. |
+| `retrieve_chunks` is slow on first call | The embedding model (~868 MB) loads on first query. Use `EMBEDDING_PROVIDER=hf_api` to skip local loading. |
+| `pgvector` import error | Install: `pip install pgvector` and ensure the `vector` extension is enabled in PostgreSQL. |
+| `403 Forbidden` from HuggingFace | HF token lacks "Inference Providers" permission. Create a fine-grained token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). |
+| SSL certificate error | Ensure `DB_SSLROOTCERT` points to the correct CA cert file (relative to project root). |

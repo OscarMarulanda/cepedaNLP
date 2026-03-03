@@ -20,6 +20,8 @@ Local Mac Mini                          Cloud
 │  chunker + embedder      │            │   Cloud (frontend +      │
 │                          │            │   Claude orchestration)  │
 │  pipeline_runner.py      │            │                          │
+│                          │            │  Render (MCP SSE server) │
+│                          │            │                          │
 │                          │            │  Anthropic Claude API    │
 │                          │            │  HuggingFace Inf. API    │
 └──────────────────────────┘            └──────────────────────────┘
@@ -32,6 +34,7 @@ Local Mac Mini                          Cloud
 | Frontend + orchestration | Streamlit Community Cloud (free, 1 GiB RAM) | $0 |
 | Database | Supabase PostgreSQL free tier (500 MB, us-west-2) | $0 |
 | pgvector | Supabase extension (included) | $0 |
+| MCP server (public SSE) | Render free tier (512 MB RAM) | $0 |
 | LLM orchestration | Anthropic Claude API (Haiku 4.5) | ~$0.0047/query |
 | Query embedding | HuggingFace Inference API (free tier) | $0 |
 | **Total** | | **~$0/month** |
@@ -92,6 +95,23 @@ Streamlit Cloud ──psycopg2 (TLS, verify-full)──▶ Supabase PostgreSQL
 MCP tool calls are **in-process Python function calls** — they never leave the Streamlit process, so there is no network attack surface between the app and the tool layer.
 
 Full analysis: `docs/DB_CONNECTION_SECURITY.md`, ADR: `docs/decisions/008-db-ssl-for-remote-connections.md`.
+
+## MCP Server (Render)
+
+A standalone MCP server is deployed on Render, providing a public SSE endpoint for external MCP clients (Claude Desktop, Claude Code, Cursor, Kiro, etc.) — zero setup, zero secrets for consumers.
+
+- **URL:** `https://cepeda-nlp-mcp.onrender.com/sse`
+- **Health check:** `https://cepeda-nlp-mcp.onrender.com/health`
+- **Runtime:** Python 3.13, Render free tier (512 MB RAM)
+- **Entry point:** `run_mcp.py` (programmatic uvicorn, not `fastmcp run` CLI)
+- **Dependencies:** `requirements-mcp.txt` (6 packages — no streamlit, plotly, anthropic)
+- **Embedding:** `EMBEDDING_PROVIDER=hf_api` (local model is ~868 MB, won't fit in 512 MB)
+- **Cold starts:** Render free tier spins down after 15 min idle; first request takes 30-60s
+- **IaC:** `render.yaml` — one-click deploy via Render dashboard
+
+This is independent from the Streamlit frontend. Streamlit runs its own in-process MCP server; the Render deployment serves external clients only.
+
+Connection instructions: `docs/MCP_CLIENT_SETUP.md`.
 
 ## Processing New Speeches
 

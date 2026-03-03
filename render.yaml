@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: cepeda-nlp-mcp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-mcp.txt
+    startCommand: python run_mcp.py
+    healthCheckPath: /health
+    envVars:
+      # Database (Supabase Session Pooler)
+      - key: DB_HOST
+        value: aws-0-us-west-2.pooler.supabase.com
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_SSLMODE
+        value: require
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Embeddings (HF Inference API — no local model)
+      - key: EMBEDDING_PROVIDER
+        value: hf_api
+      - key: HF_TOKEN
+        sync: false

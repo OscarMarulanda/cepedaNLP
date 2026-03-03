@@ -1,0 +1,17 @@
+# MCP server deployment dependencies only.
+# Lean subset — no streamlit, plotly, pandas, anthropic, etc.
+# Used for Render deployment (512 MB RAM free tier).
+
+# MCP server (brings uvicorn, starlette, pydantic)
+fastmcp>=3.0
+
+# Database
+psycopg2-binary>=2.9
+pgvector>=0.2
+
+# Embeddings (HF Inference API — no local model loaded)
+huggingface-hub>=0.20
+numpy>=1.26
+
+# Utilities
+python-dotenv>=1.0
