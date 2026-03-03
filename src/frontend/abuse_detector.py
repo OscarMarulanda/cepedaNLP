@@ -149,8 +149,7 @@ MATRIX_RAIN_HTML = """
     const elapsed = Date.now() - startTime;
 
     if (elapsed >= duration) {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      canvas.remove();
       return;
     }
 
