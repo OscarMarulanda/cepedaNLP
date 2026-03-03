@@ -2,19 +2,23 @@
 
 The CepedaNLP MCP server exposes 8 tools for querying a corpus of political speeches by Iván Cepeda. Any MCP-compatible AI agent can connect to it.
 
-**No database credentials or API keys required.** The server handles all database connections and embeddings internally. Clients simply connect to the SSE endpoint and call tools.
+The server handles all database connections and embeddings internally. Clients connect to the SSE endpoint with an API key and call tools.
 
 ---
 
 ## Public SSE endpoint
 
-A public instance is available — no setup, no secrets, no cloning:
+A public instance is available — no cloning required:
 
 ```
 https://cepeda-nlp-mcp.onrender.com/sse
 ```
 
+> **Authentication:** The public endpoint requires an API key. Include it as a Bearer token in the `Authorization` header. Contact the project maintainer for a key.
+>
 > **Cold starts:** Render free tier spins down after 15 minutes of inactivity. The first request after idle may take 30-60 seconds while the server starts up. Subsequent requests are fast.
+>
+> **Rate limiting:** The endpoint is rate-limited to 30 requests per minute per IP address.
 
 Use this URL in any of the client configurations below.
 
@@ -30,7 +34,10 @@ Add to your config file (`~/Library/Application Support/Claude/claude_desktop_co
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
@@ -46,7 +53,10 @@ Add a `.mcp.json` file to your project root:
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
@@ -60,7 +70,10 @@ Add to `.kiro/settings.json` or workspace config:
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
@@ -80,7 +93,10 @@ Or add to `.cursor/mcp.json`:
 {
   "mcpServers": {
     "cepeda-nlp": {
-      "url": "https://cepeda-nlp-mcp.onrender.com/sse"
+      "url": "https://cepeda-nlp-mcp.onrender.com/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
@@ -88,7 +104,7 @@ Or add to `.cursor/mcp.json`:
 
 ### Any MCP client (generic)
 
-Point your MCP client at the SSE endpoint: `https://cepeda-nlp-mcp.onrender.com/sse`. No authentication headers or API keys are needed — the server is self-contained.
+Point your MCP client at the SSE endpoint: `https://cepeda-nlp-mcp.onrender.com/sse`. Include an `Authorization: Bearer YOUR_API_KEY` header with every request.
 
 ### Self-hosted endpoint
 
@@ -233,6 +249,8 @@ No local PostgreSQL needed. Ensure the CA certificate file exists at the path sp
 | Problem | Fix |
 |---------|-----|
 | Connection refused / timeout | Verify the SSE endpoint URL is correct and the server is running. |
+| `401 Unauthorized` | Check that your `Authorization: Bearer <key>` header is present and the key is correct. |
+| `429 Too Many Requests` | You've exceeded the rate limit (30 req/min). Wait for the `Retry-After` seconds and try again. |
 | Tools not appearing | Restart your MCP client after updating the configuration. |
 
 ### Server operator issues

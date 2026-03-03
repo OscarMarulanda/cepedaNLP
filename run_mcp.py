@@ -3,17 +3,24 @@
 Avoids `fastmcp run` CLI edge cases and gives control over host/port
 binding. Adds a /health route for Render's health checks.
 
+Security middleware (applied in order):
+1. APIKeyMiddleware — Bearer token auth (only if MCP_API_KEY is set)
+2. RateLimitMiddleware — per-IP sliding window (default 30 req/min)
+
 Usage:
-    PORT=8000 python run_mcp.py
+    PORT=8000 python run_mcp.py                          # no auth (dev)
+    MCP_API_KEY=secret PORT=8000 python run_mcp.py       # auth enabled
 """
 
 import logging
 import os
 
+from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from src.mcp.middleware import APIKeyMiddleware, RateLimitMiddleware
 from src.mcp.server import mcp
 
 logging.basicConfig(
@@ -28,7 +35,16 @@ async def health(request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
-app = mcp.http_app(transport="sse")
+# Build middleware stack
+middleware: list[Middleware] = []
+
+if os.getenv("MCP_API_KEY"):
+    middleware.append(Middleware(APIKeyMiddleware))
+    logger.info("API key authentication enabled")
+
+middleware.append(Middleware(RateLimitMiddleware))
+
+app = mcp.http_app(transport="sse", middleware=middleware)
 app.routes.append(Route("/health", health))
 
 if __name__ == "__main__":

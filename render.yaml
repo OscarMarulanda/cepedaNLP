@@ -25,3 +25,8 @@ services:
         value: hf_api
       - key: HF_TOKEN
         sync: false
+      # Security
+      - key: MCP_API_KEY
+        sync: false
+      - key: MCP_RATE_LIMIT
+        value: "30"
