@@ -2,7 +2,20 @@
 
 The CepedaNLP MCP server exposes 9 tools for querying the political speech corpus. Any MCP-compatible AI agent can connect to it.
 
-## Prerequisites
+## Two ways to connect
+
+| Mode | Database | Embedding | Use case |
+|------|----------|-----------|----------|
+| **Local** | Local PostgreSQL (`cepeda_nlp`) | Local model or HF API | Development, full pipeline access |
+| **Production** | Supabase (deployed) | HF API | Demo, remote agents, no local setup needed |
+
+Both use the same MCP server code — only the environment variables differ.
+
+---
+
+## Local setup
+
+### Prerequisites
 
 1. **PostgreSQL running** with the `cepeda_nlp` database populated (speeches, entities, chunks with embeddings).
 
@@ -12,10 +25,10 @@ The CepedaNLP MCP server exposes 9 tools for querying the political speech corpu
    cd /path/to/cepedaNLP
    python -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip install -r requirements-full.txt
    ```
 
-3. **Environment variables** — create a `.env` file at the project root (or set them in your shell):
+3. **Environment variables** — create a `.env` file at the project root (see `.env.example`):
 
    ```env
    DB_HOST=localhost
@@ -23,12 +36,46 @@ The CepedaNLP MCP server exposes 9 tools for querying the political speech corpu
    DB_NAME=cepeda_nlp
    DB_USER=oscarm
    DB_PASSWORD=
+   DB_SSLMODE=prefer
    ANTHROPIC_API_KEY=sk-ant-...       # only needed if the client uses Claude
    EMBEDDING_PROVIDER=local           # or hf_api (see below)
    HF_TOKEN=hf_...                    # only needed if EMBEDDING_PROVIDER=hf_api
    ```
 
    The `retrieve_chunks` tool embeds the query before searching. By default it loads `paraphrase-multilingual-mpnet-base-v2` locally (~868 MB). Set `EMBEDDING_PROVIDER=hf_api` to offload embedding to the HuggingFace Inference API instead.
+
+---
+
+## Production setup (Supabase)
+
+To connect to the deployed production database without running a local PostgreSQL:
+
+### Prerequisites
+
+1. **Python environment** (same as local, but only needs the slim dependencies):
+
+   ```bash
+   cd /path/to/cepedaNLP
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+2. **Environment variables** — set in `.env`:
+
+   ```env
+   DB_HOST=aws-0-us-west-2.pooler.supabase.com
+   DB_PORT=5432
+   DB_NAME=postgres
+   DB_USER=postgres.airqmqvntfdvhivoenlj
+   DB_PASSWORD=<supabase password>
+   DB_SSLMODE=verify-full
+   DB_SSLROOTCERT=certs/supabase-ca.crt
+   EMBEDDING_PROVIDER=hf_api
+   HF_TOKEN=hf_...
+   ```
+
+   No local PostgreSQL needed. The HF token must have "Inference Providers" permission (create a fine-grained token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)).
 
 ## Transport modes
 
@@ -46,6 +93,8 @@ Add this to your Claude Desktop config file:
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
+**Local database:**
+
 ```json
 {
   "mcpServers": {
@@ -59,6 +108,31 @@ Add this to your Claude Desktop config file:
         "DB_NAME": "cepeda_nlp",
         "DB_USER": "oscarm",
         "EMBEDDING_PROVIDER": "local"
+      }
+    }
+  }
+}
+```
+
+**Production (Supabase):**
+
+```json
+{
+  "mcpServers": {
+    "cepeda-nlp": {
+      "command": "/path/to/cepedaNLP/venv/bin/python",
+      "args": ["-m", "src.mcp.server"],
+      "cwd": "/path/to/cepedaNLP",
+      "env": {
+        "DB_HOST": "aws-0-us-west-2.pooler.supabase.com",
+        "DB_PORT": "5432",
+        "DB_NAME": "postgres",
+        "DB_USER": "postgres.airqmqvntfdvhivoenlj",
+        "DB_PASSWORD": "<supabase password>",
+        "DB_SSLMODE": "verify-full",
+        "DB_SSLROOTCERT": "certs/supabase-ca.crt",
+        "EMBEDDING_PROVIDER": "hf_api",
+        "HF_TOKEN": "<your HF token>"
       }
     }
   }
@@ -168,20 +242,22 @@ Once connected, ask the agent to call `get_corpus_stats`. You should see somethi
 {
   "speeches": 14,
   "total_words": 30963,
-  "entities": 5234,
-  "annotations": 14,
-  "chunks": 131,
-  "opinions": 1
+  "entities": 825,
+  "annotations": 1594,
+  "chunks": 174,
+  "opinions": 4
 }
 ```
 
-If you get a connection error, verify PostgreSQL is running and the credentials in `.env` are correct.
+If you get a connection error, verify the database is reachable and the credentials in `.env` are correct.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | `ModuleNotFoundError: No module named 'src'` | Make sure `cwd` points to the project root, not `src/` |
-| `psycopg2.OperationalError: connection refused` | Start PostgreSQL: `brew services start postgresql@17` |
+| `psycopg2.OperationalError: connection refused` | **Local:** Start PostgreSQL: `brew services start postgresql@17`. **Production:** Check `DB_HOST` and `DB_PASSWORD` in `.env` |
 | `retrieve_chunks` is slow on first call | The embedding model (~868 MB) loads on first query. Subsequent calls are fast. Use `EMBEDDING_PROVIDER=hf_api` to skip local loading. |
 | `pgvector` import error | Install: `pip install pgvector` and ensure the `vector` extension is enabled in PostgreSQL |
+| `403 Forbidden` from HuggingFace | HF token lacks "Inference Providers" permission. Create a fine-grained token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) with that permission enabled. |
+| SSL certificate error with Supabase | Ensure `DB_SSLROOTCERT=certs/supabase-ca.crt` points to the bundled cert file (relative to project root). |
