@@ -129,14 +129,31 @@
 - [x] Add `limit` parameter to `search_entities` tool (chart count matches user request)
 - [x] Stream final response for typewriter effect (`_run_tool_rounds` + `_stream_response`)
 - [x] Add source chunk expanders for citation verification (`render_source_chunks`, 4 tests)
-- [ ] Add ethical disclaimer
+- [x] Three-panel layout: sidebar + chat + source chunks with independent scrolling
+- [x] Resizable panels with draggable JS splitter (persists in sessionStorage)
+- [x] MCP client setup documentation (`docs/MCP_CLIENT_SETUP.md`)
+- [x] Add ethical disclaimer
 - [ ] Test with Claude Desktop as bonus MCP client
+
+## Phase 6d: Deployment ✓
+- [x] Add `sslmode` + `sslrootcert` to DB connection factories
+- [x] Create slim `requirements.txt` for Streamlit Cloud (13 packages)
+- [x] Move full pipeline deps to `requirements-full.txt`
+- [x] Create `.env.example`, `.streamlit/config.toml`, `runtime.txt`
+- [x] Provision Supabase PostgreSQL (free tier, us-west-2)
+- [x] Enable pgvector extension on Supabase
+- [x] Migrate all data to Supabase (14 speeches, 174 chunks, embeddings verified)
+- [x] Bundle Supabase CA cert (`certs/supabase-ca.crt`) for `verify-full` SSL
+- [x] Configure Streamlit Cloud secrets
+- [x] Deploy to Streamlit Community Cloud
+- [x] Verify HF Inference API embedding works in production
+- [ ] Download Supabase CA cert from dashboard (currently extracted via openssl)
 
 ## Phase 7: Final Polish
 - [ ] Write README.md with project overview, setup instructions, architecture diagram
 - [ ] Record short demo video (optional)
 - [ ] Prepare MVP talking points
 - [ ] Test full system end-to-end with diverse questions
-- [ ] Add ethical disclaimer to the interface
+- [x] Add ethical disclaimer to the interface
 - [ ] Clean up code, add type hints where needed
 - [ ] Final spot-check of all notebooks

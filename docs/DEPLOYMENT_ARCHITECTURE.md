@@ -1,35 +1,59 @@
 # Deployment Architecture
 
-How the app runs in production on AWS, and how new speeches get processed.
+How the app runs in production, and how new speeches get processed.
 
-## Principle: Process Locally, Serve from AWS
+## Principle: Process Locally, Serve from Cloud
 
-The heavy NLP pipeline (Whisper, pyannote, spaCy, BETO, sentence-transformers) runs on the local Mac Mini for free. AWS only handles serving the app and storing data.
+The heavy NLP pipeline (Whisper, pyannote, spaCy, BETO, sentence-transformers) runs on the local Mac Mini for free. Cloud only handles serving the app and storing data.
 
 ## Architecture
 
 ```
-Local Mac Mini                          AWS
+Local Mac Mini                          Cloud
 ┌──────────────────────────┐            ┌──────────────────────────┐
 │                          │            │                          │
-│  yt-dlp (download)       │            │  RDS PostgreSQL 17       │
+│  yt-dlp (download)       │            │  Supabase PostgreSQL 17  │
 │  pyannote (diarization)  │            │   + pgvector extension   │
-│  Whisper (transcription) │            │                          │
-│  cleaner                 │   sync     │  EC2 / ECS               │
-│  spaCy + BETO NER        │  ───────>  │   FastAPI backend        │
-│  chunker + embedder      │            │   Streamlit frontend     │
-│                          │            │                          │
-│  pipeline_runner.py      │            │  Anthropic Claude API    │
-│                          │            │   (called from FastAPI)  │
+│  Whisper (transcription) │            │   (Session Pooler)       │
+│  cleaner                 │   sync     │                          │
+│  spaCy + BETO NER        │  ───────>  │  Streamlit Community     │
+│  chunker + embedder      │            │   Cloud (frontend +      │
+│                          │            │   Claude orchestration)  │
+│  pipeline_runner.py      │            │                          │
+│                          │            │  Anthropic Claude API    │
+│                          │            │  HuggingFace Inf. API    │
 └──────────────────────────┘            └──────────────────────────┘
 ```
+
+## Current Deployment (2026-03-02)
+
+| Component | Service | Cost |
+|-----------|---------|-----:|
+| Frontend + orchestration | Streamlit Community Cloud (free, 1 GiB RAM) | $0 |
+| Database | Supabase PostgreSQL free tier (500 MB, us-west-2) | $0 |
+| pgvector | Supabase extension (included) | $0 |
+| LLM orchestration | Anthropic Claude API (Haiku 4.5) | ~$0.0047/query |
+| Query embedding | HuggingFace Inference API (free tier) | $0 |
+| **Total** | | **~$0/month** |
+
+At demo/MVP scale (< 100 queries/month), the Claude API cost is negligible (~$0.50).
+
+## Supabase Connection Details
+
+- **Host:** `aws-0-us-west-2.pooler.supabase.com` (Session Pooler)
+- **Port:** `5432`
+- **Database:** `postgres`
+- **User:** `postgres.airqmqvntfdvhivoenlj`
+- **SSL:** `verify-full` with CA cert at `certs/supabase-ca.crt`
+
+> **IPv4 note:** Supabase free tier uses IPv6-only for direct connections (`db.xxx.supabase.co`). The Session Pooler provides IPv4 access at no extra cost. No functional limitations for this app.
 
 ## Sync Strategy: Point Pipeline at Remote DB
 
 The simplest approach — no export/import scripts needed.
 
 1. Pipeline runs locally on the Mac Mini as usual
-2. Set `DB_HOST` in `.env` to the RDS endpoint instead of `localhost`
+2. Set `DB_HOST` in `.env` to the Supabase pooler endpoint
 3. Pipeline writes speeches, entities, annotations, and chunks directly to the production DB
 4. Done — no sync step, no data migration
 
@@ -39,37 +63,35 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=cepeda_nlp
 DB_USER=oscarm
+DB_SSLMODE=prefer
 ```
 
 ### .env for production sync
 ```
-DB_HOST=cepeda-nlp.xxxxxxxxxxxx.us-east-1.rds.amazonaws.com
+DB_HOST=aws-0-us-west-2.pooler.supabase.com
 DB_PORT=5432
-DB_NAME=cepeda_nlp
-DB_USER=oscarm
-DB_PASSWORD=<secure password>
-DB_SSLMODE=require
+DB_NAME=postgres
+DB_USER=postgres.airqmqvntfdvhivoenlj
+DB_PASSWORD=<password>
+DB_SSLMODE=verify-full
+DB_SSLROOTCERT=certs/supabase-ca.crt
 ```
 
-> **Security note:** Remote DB connections must use `DB_SSLMODE=require` to enforce TLS encryption. Without it, `psycopg2` defaults to `prefer`, which silently falls back to plaintext and is vulnerable to MITM downgrade attacks. See `docs/DB_CONNECTION_SECURITY.md` for full analysis.
+## Connection Security
 
-### RDS Access
-- Whitelist the Mac Mini's public IP in the RDS security group, or
-- Use an SSH tunnel through the EC2 instance, or
-- Use AWS Systems Manager Session Manager for secure access
+All remote connections are encrypted:
 
-## AWS Components & Estimated Costs
+```
+Streamlit Cloud ──psycopg2 (TLS, verify-full)──▶ Supabase PostgreSQL
+               ──HTTPS──▶ Anthropic Claude API
+               ──HTTPS──▶ HuggingFace Inference API
+```
 
-| Component | Service | Est. Monthly Cost |
-|-----------|---------|------------------:|
-| Database | RDS PostgreSQL db.t3.micro (free tier eligible) | $0 – $15 |
-| pgvector | RDS extension (no extra cost) | $0 |
-| App server | EC2 t3.small or ECS Fargate | $5 – $20 |
-| Claude API | Anthropic API (Haiku 4.5) | ~$0.0047/query |
-| Domain/SSL | Route 53 + ACM (optional) | ~$1 |
-| **Total** | | **~$10 – $35/month** |
+`DB_SSLMODE=verify-full` verifies both encryption and server identity against the bundled Supabase CA certificate (`certs/supabase-ca.crt`). This prevents both passive eavesdropping and active MITM attacks.
 
-At demo/MVP scale (< 100 queries/month), the Claude API cost is negligible (~$0.50).
+MCP tool calls are **in-process Python function calls** — they never leave the Streamlit process, so there is no network attack surface between the app and the tool layer.
+
+Full analysis: `docs/DB_CONNECTION_SECURITY.md`, ADR: `docs/decisions/008-db-ssl-for-remote-connections.md`.
 
 ## Processing New Speeches
 
@@ -77,7 +99,7 @@ When new speeches appear on the YouTube channel:
 
 ```bash
 # On the Mac Mini
-# 1. Set .env to point at the production RDS
+# 1. Set .env to point at Supabase
 # 2. Run the pipeline
 source venv/bin/activate
 nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 &
@@ -87,12 +109,12 @@ nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 
 # All written directly to the production database
 ```
 
-No redeployment of the app needed — FastAPI/Streamlit read from the same DB, so new speeches are immediately available for RAG queries.
+No redeployment of the app needed — Streamlit reads from the same DB, so new speeches are immediately available for RAG queries.
 
-## Why Not Process on AWS?
+## Why Not Process on Cloud?
 
-| Step | Local (M4 Mac Mini) | AWS GPU (g4dn.xlarge) |
-|------|--------------------:|----------------------:|
+| Step | Local (M4 Mac Mini) | Cloud GPU (g4dn.xlarge) |
+|------|--------------------:|------------------------:|
 | Whisper (per speech) | ~7.5 min, **free** | ~3 min, ~$0.03 |
 | Diarization (per speech) | ~5 min, **free** | ~3 min, ~$0.03 |
 | Full corpus (44 speeches) | ~8 hours, **free** | ~4 hours, **~$2.10** |
@@ -100,23 +122,22 @@ No redeployment of the app needed — FastAPI/Streamlit read from the same DB, s
 
 The Mac Mini has an M4 chip with 16GB RAM — more than enough for Whisper large-v3 and pyannote. No reason to pay for cloud GPU when the local machine handles it well.
 
-## Connection Security
+## Requirements Files
 
-When the app connects to a remote database over the internet, the connection must be encrypted:
+- **`requirements.txt`** — slim deployment dependencies (13 packages, no PyTorch/Whisper/spaCy). Used by Streamlit Cloud.
+- **`requirements-full.txt`** — full pipeline + development dependencies. Used for local development.
 
-```
-Streamlit Cloud ──psycopg2 (TLS)──▶ Remote PostgreSQL
-```
+## Scalability
 
-Set `DB_SSLMODE=require` in the production environment. This ensures `psycopg2` uses TLS and refuses plaintext fallback. For maximum security, use `DB_SSLMODE=verify-full` with the provider's CA certificate.
+See `docs/DEPLOYMENT_CHECKLIST.md` for the full scalability plan. In brief:
 
-MCP tool calls are **in-process Python function calls** — they never leave the Streamlit process, so there is no network attack surface between the app and the tool layer.
+- **Current (Streamlit Cloud):** ~20 concurrent users comfortably on 1 GiB RAM with `hf_api` embedding
+- **Tier 2 ($5-15/mo):** Containerized deployment (Fly.io, Railway, GCP Cloud Run) with 2-4 GiB RAM
+- **Tier 3 ($20-50/mo):** Multiple instances + Redis + PgBouncer
 
-Full analysis: `docs/DB_CONNECTION_SECURITY.md`, ADR: `docs/decisions/008-db-ssl-for-remote-connections.md`.
+## Related Documents
 
-## Future Considerations
-
-- **CI/CD:** If the project grows, could use GitHub Actions to deploy FastAPI/Streamlit to ECS on push
-- **Auto-scaling:** Not needed at demo scale; ECS Fargate handles it if it becomes relevant
-- **Monitoring:** CloudWatch for RDS + API error rates
-- **Backup:** RDS automated snapshots (free tier includes 20GB)
+- `docs/DEPLOYMENT_CHECKLIST.md` — deployment tasks, SSL analysis, RAM estimates, scalability tiers
+- `docs/DB_CONNECTION_SECURITY.md` — transport security analysis
+- `docs/decisions/008-db-ssl-for-remote-connections.md` — ADR for SSL requirement
+- `docs/API_COST_ANALYSIS.md` — per-query and monthly API cost projections

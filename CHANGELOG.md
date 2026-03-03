@@ -2,6 +2,39 @@
 
 All notable changes to the cepedaNLP project.
 
+## 2026-03-02 (session 2)
+
+### Added
+- **Deployed to Streamlit Community Cloud** — app is live at public URL
+- **Supabase PostgreSQL** — provisioned free-tier project (us-west-2), migrated all data:
+  - 14 speeches, 825 entities, 1,594 annotations, 174 chunks (768d embeddings), 2,533 speaker segments, 4 opinions
+  - Uses Session Pooler (`aws-0-us-west-2.pooler.supabase.com`) — free tier is IPv6-only for direct connections
+- **SSL `verify-full`** — added `sslmode` + `sslrootcert` params to `psycopg2.connect()` in both `src/mcp/db.py` and `src/corpus/db_loader.py`
+- **Supabase CA certificate** — full chain (leaf + intermediate + root) bundled at `certs/supabase-ca.crt`
+- **`requirements-deploy.txt` → `requirements.txt`** — slim 13-package file for Streamlit Cloud (no PyTorch/Whisper/spaCy). Full pipeline deps moved to `requirements-full.txt`
+- **`.env.example`** — template with all 8 required env vars
+- **`.streamlit/config.toml`** — headless mode, usage stats disabled
+- **`runtime.txt`** — pins Python 3.13 for Streamlit Cloud
+- **Ethical disclaimer** — added to sidebar in `src/frontend/app.py`
+- **Deployment checklist** (`docs/DEPLOYMENT_CHECKLIST.md`) — blockers, SSL analysis, RAM/concurrency estimates, scalability plan
+
+### Fixed
+- **HuggingFace Inference API 403** — original HF token lacked "Inference Providers" permission. New fine-grained token required.
+
+## 2026-03-02 (session 1)
+
+### Added
+- **Three-panel layout** — source chunks in dedicated right column for side-by-side citation comparison
+- **Resizable panels** — draggable JS splitter between chat and chunks columns, ratio persisted in sessionStorage
+- **Independent scrolling** — each panel scrolls independently, page-level scrolling disabled
+- **MCP client setup documentation** (`docs/MCP_CLIENT_SETUP.md`) — connection instructions for Claude Desktop, Claude Code, Kiro, Cursor, SSE transport
+- **Workflow documentation** (`docs/workflow/`) — business case docs (idea, problem, initiative, solution)
+
+### Changed
+- Title replaced with compact `h3` + small caption, reduced top padding to minimize wasted space
+- Sidebar compacted — metrics paired in 2-column rows, model/message count on single line
+- Layout switched from `centered` to `wide` for three-panel support
+
 ## 2026-03-01 (session 3)
 
 ### Added

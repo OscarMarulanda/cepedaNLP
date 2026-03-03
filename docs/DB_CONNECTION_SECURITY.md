@@ -27,7 +27,7 @@ Browser ──HTTPS──▶ Streamlit Community Cloud (Python server-side)
 | Hop | Protocol | Risk | Status |
 |-----|----------|------|--------|
 | Browser → Streamlit Cloud | HTTPS (TLS, managed by Streamlit) | None — browser only sees rendered HTML, no credentials | Secure |
-| Streamlit → PostgreSQL | TCP, `sslmode` configurable | **Vulnerable without `sslmode=require`** — plaintext fallback possible | Needs configuration |
+| Streamlit → PostgreSQL | TCP, `sslmode=verify-full` | Encrypted + server identity verified via Supabase CA cert | **Secure** |
 | Streamlit → Anthropic API | HTTPS (TLS, verified by `anthropic` SDK) | None | Secure |
 | Streamlit → HuggingFace API | HTTPS (TLS, verified by `huggingface_hub`) | None | Secure |
 
@@ -46,13 +46,18 @@ MCP tools (`src/mcp/server.py`) are called as **local Python function calls** wi
 | `verify-ca` | Require SSL + verify server cert against a CA | Yes — prevents MITM with forged certs |
 | `verify-full` | Require SSL + verify cert + verify hostname | **Best** — full MITM protection |
 
-## The Fix
+## The Fix (applied 2026-03-02)
 
 ### In `src/mcp/db.py` and `src/corpus/db_loader.py`
 
-Add `sslmode` to `psycopg2.connect()`:
+Both files now include `sslmode` and conditional `sslrootcert`:
 
 ```python
+ssl_kwargs = {}
+sslrootcert = os.getenv("DB_SSLROOTCERT", "")
+if sslrootcert:
+    ssl_kwargs["sslrootcert"] = sslrootcert
+
 conn = psycopg2.connect(
     host=os.getenv("DB_HOST", "localhost"),
     port=os.getenv("DB_PORT", "5432"),
@@ -60,6 +65,7 @@ conn = psycopg2.connect(
     user=os.getenv("DB_USER", "oscarm"),
     password=os.getenv("DB_PASSWORD", ""),
     sslmode=os.getenv("DB_SSLMODE", "prefer"),
+    **ssl_kwargs,
 )
 ```
 
@@ -72,19 +78,13 @@ DB_SSLMODE=prefer
 ```
 Localhost connections don't need SSL — traffic never leaves the machine.
 
-**Streamlit Community Cloud** (Streamlit Secrets):
+**Production — Supabase** (Streamlit Secrets):
 ```
-DB_HOST=db.xxxx.supabase.co
-DB_SSLMODE=require
-```
-Remote connections **must** use `require` at minimum.
-
-**Production with certificate verification** (maximum security):
-```
+DB_HOST=aws-0-us-west-2.pooler.supabase.com
 DB_SSLMODE=verify-full
-DB_SSLROOTCERT=/path/to/ca-certificate.crt
+DB_SSLROOTCERT=certs/supabase-ca.crt
 ```
-This requires downloading the provider's CA certificate (Supabase and AWS RDS both provide these).
+Uses `verify-full` with the Supabase CA certificate chain bundled in the repo. This verifies encryption, certificate authenticity, and hostname — full MITM protection.
 
 ## What's at risk without SSL
 
@@ -100,15 +100,12 @@ The main risk is **credential theft** during the connection handshake, not the s
 
 ## Provider-specific notes
 
-### Supabase
+### Supabase (current provider)
 - SSL is enabled by default on all Supabase PostgreSQL instances
-- Connection string includes `sslmode=require` when copied from the dashboard
-- CA certificate available at `https://supabase.com/docs/guides/database/connecting-to-postgres#ssl`
-
-### AWS RDS
-- SSL is supported by default; can be enforced via `rds.force_ssl=1` parameter group
-- CA bundle downloadable from AWS: `https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem`
-- Use `sslrootcert` parameter for `verify-full` mode
+- Free tier uses IPv6-only for direct connections — use **Session Pooler** (`pooler.supabase.com`) for IPv4
+- CA certificate chain extracted via `openssl s_client` and bundled at `certs/supabase-ca.crt`
+- Chain: leaf (`*.pooler.supabase.com`) → intermediate (`Supabase Intermediate 2021 CA`) → root (`Supabase Root 2021 CA`)
+- CA certs are public (they verify identity, not grant access) — safe to commit to the repo
 
 ## Related files
 
