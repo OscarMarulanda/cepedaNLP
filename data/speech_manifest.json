@@ -284,5 +284,16 @@
     "description": "Discurso de Iván Cepeda en Bogotá, cierre de campaña del Pacto Histórico al Congreso, 27 de febrero de 2026",
     "source": "youtube",
     "status": "pending"
+  },
+  {
+    "id": "0CS-B1cFXlI",
+    "title": "\"POR EL DESARROLLO TERRITORIAL SOSTENIBLE DE LA PUERTA DE LA AMAZONÍA\"",
+    "url": "https://www.youtube.com/watch?v=0CS-B1cFXlI",
+    "duration_seconds": 1234,
+    "upload_date": "2026-03-03",
+    "view_count": 4029,
+    "description": "Discurso de Iván Cepeda en Florencia, Caquetá, 2 de marzo de 2026",
+    "source": "youtube",
+    "status": "pending"
   }
 ]

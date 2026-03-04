@@ -18,6 +18,11 @@ All notable changes to the cepedaNLP project.
 ### Changed
 - `run_mcp.py` — wires middleware stack via `mcp.http_app(middleware=[...])`
 
+### Added (later)
+- **Production sync script** (`src/corpus/sync_to_production.py`) — pushes new speeches from local DB to Supabase without re-processing. Connects to both DBs simultaneously, finds missing speeches by `youtube_url`, copies speech + entities + annotations + speaker_segments + chunks with embeddings. Remaps foreign keys automatically. Supports `--dry-run`.
+- Sync instructions document (`docs/SYNC_TO_PRODUCTION.md`)
+- 2 new speeches processed locally (IDs 17-18, corpus now 16 speeches / 35,287 words / 198 chunks)
+
 ### Security
 - Hardened API key validation against side-channel attacks
 - Hardened client IP extraction for proxy-aware rate limiting
