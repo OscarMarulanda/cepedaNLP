@@ -88,12 +88,13 @@ def retrieve_chunks(
             )
             rows = cur.fetchall()
 
-    results = []
+    # Collect chunks that pass the similarity threshold
+    chunks = []
     for row in rows:
         similarity = float(row[4])
         if similarity < 0.3:
             continue
-        results.append({
+        chunks.append({
             "chunk_id": row[0],
             "speech_id": row[1],
             "chunk_index": row[2],
@@ -103,8 +104,64 @@ def retrieve_chunks(
             "speech_date": str(row[6]) if row[6] else None,
             "speech_location": row[7],
             "speech_event": row[8],
-            "youtube_link": _youtube_link(row[9], row[10]),
+            "youtube_url": row[9],
+            "chunk_start_time": row[10],
         })
+
+    # Fetch sentence-level timestamps for each chunk
+    results = []
+    if chunks:
+        with db_connection() as conn2:
+            with conn2.cursor() as cur2:
+                for chunk in chunks:
+                    cur2.execute(
+                        """
+                        SELECT sc.sentence_start, sc.sentence_end
+                        FROM speech_chunks sc
+                        WHERE sc.id = %s
+                        """,
+                        (chunk["chunk_id"],),
+                    )
+                    span = cur2.fetchone()
+
+                    sentences = []
+                    if span and span[0] is not None and span[1] is not None:
+                        cur2.execute(
+                            """
+                            SELECT sentence_text, start_time
+                            FROM annotations
+                            WHERE speech_id = %s
+                              AND sentence_index >= %s
+                              AND sentence_index <= %s
+                            ORDER BY sentence_index
+                            """,
+                            (chunk["speech_id"], span[0], span[1]),
+                        )
+                        for sent_row in cur2.fetchall():
+                            st = int(sent_row[1]) if sent_row[1] is not None else None
+                            sentences.append({
+                                "text": sent_row[0],
+                                "start_time": st,
+                                "youtube_link": _youtube_link(
+                                    chunk["youtube_url"], st,
+                                ),
+                            })
+
+                    results.append({
+                        "chunk_id": chunk["chunk_id"],
+                        "speech_id": chunk["speech_id"],
+                        "chunk_index": chunk["chunk_index"],
+                        "chunk_text": chunk["chunk_text"],
+                        "similarity": chunk["similarity"],
+                        "speech_title": chunk["speech_title"],
+                        "speech_date": chunk["speech_date"],
+                        "speech_location": chunk["speech_location"],
+                        "speech_event": chunk["speech_event"],
+                        "youtube_link": _youtube_link(
+                            chunk["youtube_url"], chunk["chunk_start_time"],
+                        ),
+                        "sentences": sentences,
+                    })
 
     logger.info(
         "retrieve_chunks: %d results for '%s'",

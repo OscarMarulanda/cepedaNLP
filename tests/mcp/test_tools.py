@@ -29,18 +29,40 @@ def _mock_conn(rows, fetchone_value=None):
     return mock_conn
 
 
+def _mock_db_ctx(conn):
+    """Wire a mock connection into the db_connection() context manager."""
+    ctx = MagicMock()
+    ctx.__enter__ = MagicMock(return_value=conn)
+    ctx.__exit__ = MagicMock(return_value=False)
+    return ctx
+
+
 class TestRetrieveChunks:
     @patch("src.mcp.server.db_connection")
     @patch("src.mcp.server.embed_query")
-    def test_returns_results(self, mock_embed, mock_db_ctx):
+    def test_returns_results_with_sentences(self, mock_embed, mock_db_ctx):
         mock_embed.return_value = np.zeros(768)
-        conn = _mock_conn([
+
+        # First call: pgvector similarity search
+        conn1 = _mock_conn([
             (1, 1, 0, "Fragmento sobre racismo", 0.82,
              "Discurso en Tumaco", "2026-02-24", "Tumaco", "Rally",
              "https://www.youtube.com/watch?v=abc123", 120),
         ])
-        mock_db_ctx.return_value.__enter__ = MagicMock(return_value=conn)
-        mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
+
+        # Second call: sentence lookups (fetchone for span, fetchall for sentences)
+        mock_cursor2 = MagicMock()
+        mock_cursor2.fetchone.return_value = (0, 2)  # sentence_start, sentence_end
+        mock_cursor2.fetchall.return_value = [
+            ("Primera oración.", 120.0),
+            ("Segunda oración.", 135.0),
+            ("Tercera oración.", 150.0),
+        ]
+        conn2 = MagicMock()
+        conn2.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor2)
+        conn2.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_db_ctx.side_effect = [_mock_db_ctx(conn1), _mock_db_ctx(conn2)]
 
         results = retrieve_chunks("racismo en Colombia", top_k=3)
 
@@ -50,6 +72,11 @@ class TestRetrieveChunks:
         assert results[0]["speech_title"] == "Discurso en Tumaco"
         assert "abc123" in results[0]["youtube_link"]
         assert "&t=120" in results[0]["youtube_link"]
+        # Sentence-level data
+        assert len(results[0]["sentences"]) == 3
+        assert results[0]["sentences"][0]["text"] == "Primera oración."
+        assert results[0]["sentences"][0]["start_time"] == 120
+        assert "&t=135" in results[0]["sentences"][1]["youtube_link"]
 
     @patch("src.mcp.server.db_connection")
     @patch("src.mcp.server.embed_query")
@@ -61,8 +88,16 @@ class TestRetrieveChunks:
             (2, 1, 1, "Irrelevant", 0.15, "Speech", "2026-02-24",
              None, None, None, None),
         ])
-        mock_db_ctx.return_value.__enter__ = MagicMock(return_value=conn)
-        mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
+
+        # Second call for sentence lookups (1 chunk passes threshold)
+        mock_cursor2 = MagicMock()
+        mock_cursor2.fetchone.return_value = (0, 0)
+        mock_cursor2.fetchall.return_value = [("Sentence.", 10.0)]
+        conn2 = MagicMock()
+        conn2.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor2)
+        conn2.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_db_ctx.side_effect = [_mock_db_ctx(conn), _mock_db_ctx(conn2)]
 
         results = retrieve_chunks("test query")
         assert len(results) == 1
@@ -72,8 +107,7 @@ class TestRetrieveChunks:
     def test_empty_results(self, mock_embed, mock_db_ctx):
         mock_embed.return_value = np.zeros(768)
         conn = _mock_conn([])
-        mock_db_ctx.return_value.__enter__ = MagicMock(return_value=conn)
-        mock_db_ctx.return_value.__exit__ = MagicMock(return_value=False)
+        mock_db_ctx.return_value = _mock_db_ctx(conn)
 
         results = retrieve_chunks("nonexistent topic")
         assert results == []

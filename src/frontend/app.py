@@ -30,7 +30,7 @@ from src.frontend.abuse_detector import (
     detect_abuse,
 )
 from src.frontend.prompts import SYSTEM_PROMPT, TOOLS
-from src.frontend.visualizations import render_source_chunks, render_visualizations
+from src.frontend.visualizations import render_visualizations
 from src.mcp.server import (
     get_corpus_stats,
     get_opinions,
@@ -312,102 +312,10 @@ def _render_sidebar():
         )
 
 
-# Draggable splitter injected via st.html — runs directly in the page DOM.
-# Scrolling is handled natively by st.container(height=...).
-_SPLITTER_JS = """
-<script>
-(function() {
-    var main = document.querySelector('[data-testid="stMainBlockContainer"]');
-    if (!main) return;
-    var hBlock = main.querySelector('[data-testid="stHorizontalBlock"]');
-    if (!hBlock) return;
-    var cols = hBlock.querySelectorAll(':scope > [data-testid="stColumn"]');
-    if (cols.length < 2) return;
-
-    // Restore saved split ratio
-    var saved = sessionStorage.getItem('cepeda-split');
-    if (saved) {
-        var pct = parseFloat(saved);
-        cols[0].style.flex = '0 0 ' + pct + '%';
-        cols[1].style.flex = '0 0 ' + (97 - pct) + '%';
-    }
-
-    // Don't add duplicate splitter
-    if (hBlock.querySelector('.cepeda-splitter')) return;
-
-    var sp = document.createElement('div');
-    sp.className = 'cepeda-splitter';
-    sp.style.cssText = [
-        'width:6px', 'cursor:col-resize', 'background:transparent',
-        'flex-shrink:0', 'align-self:stretch',
-        'transition:background 0.15s', 'border-radius:3px'
-    ].join(';');
-
-    var dragging = false;
-    sp.onmouseenter = function() { if (!dragging) sp.style.background = '#d0d0d0'; };
-    sp.onmouseleave = function() { if (!dragging) sp.style.background = 'transparent'; };
-
-    sp.addEventListener('mousedown', function(e) {
-        dragging = true;
-        e.preventDefault();
-        sp.style.background = '#999';
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-
-        function onMove(ev) {
-            var rect = hBlock.getBoundingClientRect();
-            var pct = ((ev.clientX - rect.left) / rect.width) * 100;
-            pct = Math.max(25, Math.min(85, pct));
-            cols[0].style.flex = '0 0 ' + pct + '%';
-            cols[1].style.flex = '0 0 ' + (97 - pct) + '%';
-            sessionStorage.setItem('cepeda-split', pct.toFixed(1));
-        }
-
-        function onUp() {
-            dragging = false;
-            sp.style.background = 'transparent';
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-        }
-
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    });
-
-    hBlock.insertBefore(sp, cols[1]);
-})();
-</script>
-"""
-
-
-def _render_chunks_panel(container) -> None:
-    """Render source chunks in the right panel from the latest assistant message."""
-    with container:
-        for msg in reversed(st.session_state.messages):
-            if msg["role"] != "assistant" or not msg.get("tool_calls"):
-                continue
-            has_chunks = any(
-                tc["tool_name"] == "retrieve_chunks"
-                and isinstance(tc["tool_result"], list)
-                and tc["tool_result"]
-                for tc in msg["tool_calls"]
-            )
-            if has_chunks:
-                render_source_chunks(msg["tool_calls"])
-                return
-        st.caption(
-            "Los fragmentos de los discursos citados aparecerán aquí "
-            "cuando hagas una pregunta."
-        )
-
-
 def main():
     st.set_page_config(
         page_title="Asistente Cepeda",
         page_icon="🎤",
-        layout="wide",
     )
 
     _init_session_state()
@@ -424,55 +332,14 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # CSS: lock page scroll, only panels scroll internally
-    st.markdown("""<style>
-    /* Kill scrolling on every parent up to the root */
-    html, body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stMain"],
-    section.main {
-        overflow: hidden !important;
-        height: 100vh !important;
-    }
-    [data-testid="stMainBlockContainer"] {
-        padding-top: 3.5rem !important;
-        height: 100vh !important;
-        overflow: hidden !important;
-    }
-    /* Columns side-by-side */
-    [data-testid="stMainBlockContainer"] [data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-    }
-    [data-testid="stMainBlockContainer"] [data-testid="stHorizontalBlock"]
-        > [data-testid="stColumn"] {
-        min-width: 0 !important;
-        overflow-x: hidden;
-    }
-    /* Only the inner column divs scroll */
-    [data-testid="stMainBlockContainer"] [data-testid="stHorizontalBlock"]
-        > [data-testid="stColumn"] > div:first-child {
-        max-height: calc(100vh - 320px);
-        overflow-y: auto;
-        scrollbar-width: thin;
-    }
-    </style>""", unsafe_allow_html=True)
+    # Conversation history
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            if msg["role"] == "assistant" and msg.get("tool_calls"):
+                render_visualizations(msg["tool_calls"])
+            st.markdown(msg["content"])
 
-    chat_col, chunks_col = st.columns([3, 1], gap="small")
-
-    # Right panel: create container now, fill after processing
-    with chunks_col:
-        st.markdown("#### Fragmentos fuente")
-        chunks_container = st.container()
-
-    # Left panel: conversation history
-    with chat_col:
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                if msg["role"] == "assistant" and msg.get("tool_calls"):
-                    render_visualizations(msg["tool_calls"])
-                st.markdown(msg["content"])
-
-    # Chat input (page-level — pinned to bottom)
+    # Chat input
     prompt = st.chat_input("Escribe tu pregunta...")
 
     if prompt and st.session_state.message_count >= MAX_MESSAGES_PER_SESSION:
@@ -481,65 +348,56 @@ def main():
             "por sesión. Limpia la conversación para continuar."
         )
     elif prompt:
-        with chat_col:
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        with st.chat_message("user"):
+            st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.session_state.message_count += 1
 
         if detect_abuse(prompt):
-            with chat_col:
-                with st.chat_message("assistant"):
-                    components.html(MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT)
-                    st.markdown("xD")
+            with st.chat_message("assistant"):
+                components.html(MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT)
+                st.markdown("xD")
             st.session_state.messages.append({
                 "role": "assistant", "content": "xD", "tool_calls": [],
             })
         else:
-            with chat_col:
-                with st.chat_message("assistant"):
-                    with st.spinner("Buscando en los discursos..."):
-                        result = _run_tool_rounds(
-                            client, st.session_state.messages,
-                        )
+            with st.chat_message("assistant"):
+                with st.spinner("Buscando en los discursos..."):
+                    result = _run_tool_rounds(
+                        client, st.session_state.messages,
+                    )
 
-                    tool_call_dicts = [
-                        {
-                            "tool_name": tc.tool_name,
-                            "tool_input": tc.tool_input,
-                            "tool_result": tc.tool_result,
-                        }
-                        for tc in result.tool_calls
-                    ]
+                tool_call_dicts = [
+                    {
+                        "tool_name": tc.tool_name,
+                        "tool_input": tc.tool_input,
+                        "tool_result": tc.tool_result,
+                    }
+                    for tc in result.tool_calls
+                ]
 
-                    if result.is_easter_egg:
-                        components.html(
-                            MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT,
-                        )
-                        full_text = "xD"
-                    elif result.direct_text is not None:
-                        if tool_call_dicts:
-                            render_visualizations(tool_call_dicts)
-                        st.markdown(result.direct_text)
-                        full_text = result.direct_text
-                    else:
-                        if tool_call_dicts:
-                            render_visualizations(tool_call_dicts)
-                        full_text = st.write_stream(
-                            _stream_response(client, result.api_messages)
-                        )
+                if result.is_easter_egg:
+                    components.html(
+                        MATRIX_RAIN_HTML, height=MATRIX_RAIN_HEIGHT,
+                    )
+                    full_text = "xD"
+                elif result.direct_text is not None:
+                    if tool_call_dicts:
+                        render_visualizations(tool_call_dicts)
+                    st.markdown(result.direct_text)
+                    full_text = result.direct_text
+                else:
+                    if tool_call_dicts:
+                        render_visualizations(tool_call_dicts)
+                    full_text = st.write_stream(
+                        _stream_response(client, result.api_messages)
+                    )
 
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": full_text,
                 "tool_calls": tool_call_dicts,
             })
-
-    # Always render chunks panel (runs after any new message is processed)
-    _render_chunks_panel(chunks_container)
-
-    # Inject resizable splitter between panels
-    st.html(_SPLITTER_JS, unsafe_allow_javascript=True)
 
 
 if __name__ == "__main__":

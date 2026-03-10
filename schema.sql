@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS annotations (
     pos_tags JSONB,        -- ["NOUN", "VERB", ...]
     dep_parse JSONB,       -- dependency tree structure
     sentiment_score FLOAT,
+    start_time FLOAT,      -- seconds into video (from Whisper segment matching)
     created_at TIMESTAMP DEFAULT NOW()
 );
 

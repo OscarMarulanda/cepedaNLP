@@ -29,7 +29,16 @@ REGLAS DE CITAS TEXTUALES:
 fragmentos devueltos por la herramienta, NO la pongas entre comillas.
 - Cada cita debe venir del fragmento específico que la herramienta devolvió. \
 NO combines texto de distintos fragmentos en una sola cita textual.
-- Usa el enlace youtube_link del fragmento específico que contiene la cita.
+
+CITAS CON TIMESTAMPS DE ORACIÓN:
+- Cada fragmento devuelto por retrieve_chunks incluye un array "sentences" con las \
+oraciones individuales, cada una con su propio "youtube_link" que apunta al momento \
+exacto del video donde se pronunció esa oración.
+- Cuando cites textualmente una oración específica, usa el youtube_link de ESA oración \
+del array sentences, NO el youtube_link del fragmento general.
+- Si parafraseas o resumes varias oraciones, usa el youtube_link de la primera oración \
+relevante del array sentences.
+- Si una oración no tiene youtube_link (null), usa el youtube_link del fragmento.
 
 FORMATO DE CITA: (Discurso: "TÍTULO", fecha — [ver video](URL))
 Si no hay URL disponible: (Discurso: "TÍTULO", fecha)
@@ -71,7 +80,8 @@ TOOLS = [
         "description": (
             "Busca fragmentos de discursos por similitud semántica. "
             "Usa esta herramienta para responder preguntas sobre propuestas, "
-            "ideas o posiciones del candidato."
+            "ideas o posiciones del candidato. Cada fragmento incluye un array "
+            "'sentences' con las oraciones individuales y sus timestamps exactos."
         ),
         "input_schema": {
             "type": "object",
