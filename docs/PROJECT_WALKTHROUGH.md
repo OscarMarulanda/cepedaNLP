@@ -338,7 +338,7 @@ Full evaluation documented in `docs/NER_MODEL_EVALUATION.md`.
 3. A **1-sentence overlap** between consecutive chunks prevents information loss at chunk boundaries.
 4. "Runt" chunks (final chunks under 30 words, like "Gracias.") are merged into the previous chunk.
 5. **Character offsets** are computed by matching chunk text against the full transcript.
-6. **Timestamps** are mapped by fuzzy text matching against Whisper segments — the earliest matching segment's `start` time is stored in the chunk's `metadata` JSONB field. This enables YouTube timestamp links in citations.
+6. **Timestamps** are mapped at the sentence level: each annotation has a `start_time` column backfilled via deterministic character-offset matching against Whisper segments. At query time, `retrieve_chunks` returns a `sentences` array per chunk with per-sentence YouTube timestamp links.
 
 **Tools/libraries:** Python standard library only (`dataclasses`, `logging`, `json`)
 
@@ -362,7 +362,7 @@ The original plan called for "dependency parse ROOT boundaries" — splitting te
 
 The chunking strategy is documented in detail in `docs/RAG_DESIGN_DECISIONS.md`.
 
-**Current stats:** 14 speeches → 174 chunks (avg ~12 per speech, ~10:1 compression ratio from sentences).
+**Current stats:** 51 speeches → 174 chunks (avg ~12 per speech, ~10:1 compression ratio from sentences). 7,193 annotated sentences, all with sentence-level timestamps.
 
 ---
 
@@ -408,7 +408,7 @@ Embedding runs locally at zero API cost. Only the Claude generation step (step 1
 1. The query text is embedded using the same model (`embed_query()`).
 2. A SQL query uses pgvector's `<=>` operator (cosine distance) with the HNSW index to find nearest neighbors.
 3. The query JOINs with the `speeches` table to fetch citation metadata (title, date, location, event, YouTube URL).
-4. The `start_time` is extracted from the chunk's `metadata` JSONB for YouTube timestamp links.
+4. Sentence-level `start_time` values from the `annotations` table provide per-sentence YouTube timestamp links.
 5. Results below the similarity threshold (0.3) are filtered out.
 6. Results are returned as `RetrievalResult` objects sorted by similarity (descending).
 
@@ -497,7 +497,7 @@ python -m src.rag.query "¿Que propone sobre el racismo?"
 
 | Tool | Type | Purpose |
 |------|------|---------|
-| `retrieve_chunks` | Read | Semantic search — embed query, pgvector search, return cited chunks |
+| `retrieve_chunks` | Read | Semantic search — embed query, pgvector search, return cited chunks with per-sentence timestamps |
 | `list_speeches` | Read | List all speeches with metadata (title, date, location, word count) |
 | `get_speech_detail` | Read | Full details for one speech (transcript, entity count, chunk count) |
 | `search_entities` | Read | Search named entities across all speeches by text or label |
@@ -638,7 +638,7 @@ nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 
 |-------|---------|-------------|
 | `speeches` | Core speech metadata | title, candidate, speech_date, location, event, youtube_url, cleaned_transcript, word_count |
 | `entities` | NER-extracted named entities | speech_id, entity_text, entity_label (PER/ORG/LOC/MISC), start_char, end_char |
-| `annotations` | Sentence-level NLP output | speech_id, sentence_index, sentence_text, tokens (JSONB), pos_tags (JSONB), dep_parse (JSONB) |
+| `annotations` | Sentence-level NLP output | speech_id, sentence_index, sentence_text, tokens (JSONB), pos_tags (JSONB), dep_parse (JSONB), start_time (FLOAT — Whisper segment timestamp) |
 | `speech_chunks` | RAG chunks + embeddings | speech_id, chunk_text, embedding vector(768), metadata JSONB (start_time), sentence_start/end |
 | `speech_topics` | Topic modeling results | speech_id, topic, confidence, source (bertopic/manual) — reserved for Phase 2 |
 | `speaker_segments` | Diarization results | speech_id, speaker_label, is_target, start_time, end_time, confidence |
@@ -650,7 +650,7 @@ nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 
 
 ## 17. Test Suite
 
-**177 tests** across multiple test files, all passing.
+**183 tests** across multiple test files, all passing.
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
@@ -661,7 +661,8 @@ nohup python -m src.corpus.pipeline_runner --new=5 > data/pipeline_run.log 2>&1 
 | `tests/mcp/test_tools.py` | 15 | All 9 MCP tools (data access, opinion writes, `conn.commit()` verification) |
 | `tests/mcp/test_security.py` | 9 | SQL injection prevention, input validation, opinion security |
 | `tests/frontend/test_abuse_detector.py` | 75 | Regex-based abuse detection patterns (SQLi, XSS, prompt injection) |
-| `tests/frontend/test_visualizations.py` | 28 | Chart rendering, Colombia bubble map, source chunk expanders |
+| `tests/frontend/test_visualizations.py` | 24 | Chart rendering, Colombia bubble map |
+| `tests/corpus/test_timestamp_backfill.py` | 7 | Sentence-level timestamp backfill logic |
 | Other test files | 23 | Additional coverage across modules |
 
 **Testing approach:**

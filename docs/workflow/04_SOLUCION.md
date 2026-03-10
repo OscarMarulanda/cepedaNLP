@@ -119,7 +119,7 @@ Respuesta con citas:
 ### Decisiones técnicas clave
 - **Chunking por oraciones** (no por caracteres ni por ROOT del dependency parse) — respeta unidades temáticas del discurso
 - **Overlap de 1 oración** entre chunks consecutivos — evita pérdida de información en fronteras
-- **Timestamps fuzzy** — matching aproximado entre segmentos Whisper y oraciones spaCy para links con timestamp al video
+- **Timestamps por oración** — matching determinístico por offset de carácter entre segmentos Whisper y oraciones spaCy para links con timestamp exacto al video (7,193/7,193 mapeadas)
 - **Auto-chunk en ingesta** — cada nuevo discurso queda RAG-ready automáticamente
 - **HF Inference API** como alternativa para embedding de queries en deploy (evita cargar ~868 MB del modelo local)
 

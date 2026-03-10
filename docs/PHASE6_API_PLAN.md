@@ -50,7 +50,7 @@ tests/mcp/
 
 | Tool | Params | Returns |
 |------|--------|---------|
-| `retrieve_chunks` | `query: str, top_k: int = 5` | Embedded query → pgvector search → chunks with speech title, date, YouTube timestamp link, similarity score. NO Claude call. |
+| `retrieve_chunks` | `query: str, top_k: int = 5` | Embedded query → pgvector search → chunks with speech metadata, similarity score, and `sentences` array (each with `text`, `start_time`, `youtube_link` for sentence-level citations). NO Claude call. |
 | `list_speeches` | — | All speeches: id, title, date, location, event, word_count, youtube_url |
 | `get_speech_detail` | `speech_id: int` | Single speech + entity_count + chunk_count + duration |
 | `search_entities` | `entity_text?: str, entity_label?: str` | Entities matching search across all speeches with mention counts |

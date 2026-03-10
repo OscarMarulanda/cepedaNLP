@@ -48,21 +48,30 @@ We use `sentence-transformers/paraphrase-multilingual-mpnet-base-v2`, a 768-dime
 - **MiniLM** (`all-MiniLM-L12-v2`): Only 384 dimensions and English-only. Disqualified.
 - **distiluse-base-multilingual**: Only 512 dimensions. Would require schema changes.
 
-## 3. Timestamp Mapping via Fuzzy Text Matching
+## 3. Timestamp Mapping: Chunk-Level → Sentence-Level
 
-### The Decision
-Each chunk stores a `start_time` in its metadata, derived from the original Whisper transcript segments. This enables citations with YouTube timestamp links (e.g., `youtube.com/watch?v=abc&t=120`).
+### Evolution
+Originally, each chunk stored an approximate `start_time` in its `metadata` JSONB, derived from fuzzy text matching against Whisper segments. This gave timestamps within ~5-10 seconds of the actual quote.
 
-### The Challenge
-Whisper segments and spaCy sentences don't align 1:1. Whisper segments are based on audio silence boundaries (~10-30 second chunks), while spaCy splits on syntactic sentence boundaries. A single spaCy sentence might span two Whisper segments, or vice versa.
+**In March 2026, this was replaced with sentence-level timestamps** — a much more precise approach.
 
-### The Solution
-For each chunk, we search for the first Whisper segment whose text overlaps with the chunk's first ~100 characters. The match is case-insensitive and uses substring matching (first 30 characters of each). The matched segment's `start` time becomes the chunk's `start_time`.
+### Current Implementation: Sentence-Level Timestamps
+Each annotation sentence now has its own `start_time` column in the `annotations` table, backfilled via deterministic character-offset matching against Whisper segments.
 
-This gives approximate but useful timestamps — typically within a few seconds of the actual quote. For a YouTube viewer, being dropped within 5-10 seconds of the relevant passage is good enough.
+**How it works:**
+1. The cleaned transcript `full_text` is the concatenation of Whisper segments: `" ".join(seg["text"] for seg in segments)`
+2. This means character offsets in `full_text` map deterministically to specific segments
+3. For each annotation sentence, we find its character position in `full_text` and look up which Whisper segment covers that position
+4. That segment's `start` time becomes the sentence's `start_time`
+
+**Result:** 7,193/7,193 sentences matched with 0 failures, <1 second runtime.
+
+**At query time:** `retrieve_chunks` returns a `sentences` array per chunk, each with `{text, start_time, youtube_link}`. Claude uses the per-sentence `youtube_link` when citing specific quotes, giving users a link that jumps to the exact moment in the video.
 
 ### Source
-`src/rag/chunker.py :: map_chunk_timestamps()`
+- Backfill script: `src/corpus/timestamp_backfill.py`
+- MCP tool: `src/mcp/server.py :: retrieve_chunks()`
+- Schema: `annotations.start_time FLOAT`
 
 ## 4. Vector Index: HNSW
 
@@ -91,8 +100,8 @@ Every RAG response includes citations in the format:
 - **The generator formats the links.** Claude receives the chunk text, speech title, date, and YouTube link in its context block and is instructed to cite sources using the provided links.
 - **`RetrievalResult.youtube_link` property** constructs the timestamped URL, normalizing both `youtube.com/watch?v=` and `youtu.be/` formats.
 
-### Why JSONB for Timestamps Instead of a Column?
-`start_time` is approximate metadata, not a first-class data field. Storing it in the `metadata` JSONB column keeps the schema clean and allows adding more metadata later (e.g., `end_time`, `speaker`, `topic_tags`) without schema migrations.
+### Chunk-Level vs. Sentence-Level Timestamps
+The original chunk-level timestamps stored in `metadata` JSONB are still present for backward compatibility but are superseded by sentence-level timestamps in `annotations.start_time`. The MCP `retrieve_chunks` tool returns both the chunk-level `youtube_link` and a `sentences` array with per-sentence links. The system prompt instructs Claude to prefer sentence-level links for specific quotes.
 
 ## 6. System Prompt: Neutral, Cited, Spanish
 

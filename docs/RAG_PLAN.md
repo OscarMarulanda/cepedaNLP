@@ -92,11 +92,23 @@ QUERY TIME:
 - Update `src/rag/__init__.py` to expose `ask()`
 
 ## Timestamp Mapping Strategy
+
+**Updated (2026-03-09):** Timestamps are now mapped at the **sentence level** instead of chunk level.
+
 Raw transcripts (`data/raw/{id}.json`) have Whisper segments with `start`/`end` times:
 ```json
 {"start": 43.26, "end": 55.68, "text": "de seguir explicando en los territorios..."}
 ```
-The chunker maps these to chunks by finding which raw segments overlap with the chunk's text. Since sentences from spaCy don't align 1:1 with Whisper segments, we use fuzzy text matching: for each chunk, search for the first raw segment whose text appears in (or overlaps with) the chunk text. The earliest matching segment's `start` time becomes the chunk's `start_time`. This gives approximate but useful YouTube timestamps (typically within a few seconds of the actual quote).
+
+The original approach mapped timestamps per chunk via fuzzy text matching. This was replaced by deterministic character-offset matching at the sentence level:
+1. `full_text = " ".join(seg["text"] for seg in cleaned_segments)` — character offsets are deterministic
+2. For each annotation sentence, find its position in `full_text`
+3. Look up which Whisper segment covers that character position
+4. Store the segment's `start` time in `annotations.start_time`
+
+**Result:** 7,193/7,193 sentences matched, 0 failures. `retrieve_chunks` returns a `sentences` array per chunk with `{text, start_time, youtube_link}`.
+
+**Script:** `src/corpus/timestamp_backfill.py`
 
 ## Files Summary
 

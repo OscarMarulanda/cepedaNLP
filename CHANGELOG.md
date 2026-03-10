@@ -2,6 +2,26 @@
 
 All notable changes to the cepedaNLP project.
 
+## 2026-03-09
+
+### Added
+- **Sentence-level timestamps** for precise YouTube citations:
+  - `annotations.start_time` column — backfilled via deterministic char-offset matching against Whisper segments (7,193/7,193 matched, 0 failures)
+  - `src/corpus/timestamp_backfill.py` — backfill script with char-offset-to-segment mapping
+  - `retrieve_chunks` now returns a `sentences` array per chunk, each with `{text, start_time, youtube_link}`
+  - System prompt updated with sentence-level citation rules (`CITAS CON TIMESTAMPS DE ORACIÓN`)
+  - 51 speeches in corpus (49 campaign + 2 interviews)
+- `tests/corpus/test_timestamp_backfill.py` — 7 tests for backfill logic
+
+### Changed
+- **UI simplified to single-column layout** — removed three-panel layout, splitter JS, dual-column CSS, `_render_chunks_panel()`, `layout="wide"`. Mobile-friendly.
+- YouTube citations now link to the exact sentence timestamp (e.g., `?t=1226`) instead of chunk-level timestamps
+
+### Removed
+- `render_source_chunks()` from `visualizations.py` (replaced by inline sentence-level citations)
+- Draggable JS splitter and independent scrolling CSS
+- `layout="wide"` Streamlit config
+
 ## 2026-03-03
 
 ### Added
